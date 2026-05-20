@@ -1,12 +1,42 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 export default function Login() {
   const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate('/dashboard');
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Login gagal');
+        return;
+      }
+
+      // Simpan token ke localStorage
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      navigate('/dashboard');
+    } catch {
+      setError('Tidak dapat terhubung ke server. Coba lagi.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -23,24 +53,30 @@ export default function Login() {
           Kanbanflow Login
         </h1>
 
-        {/* Form Section */}
+        {/* Error Message */}
+        {error && (
+          <div className="w-full mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm text-center">
+            {error}
+          </div>
+        )}
+
+        {/* Form */}
         <form className="w-full space-y-6" onSubmit={handleSubmit}>
-          {/* Email / Username Input */}
           <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-800" htmlFor="username">
-              Email / Username
+            <label className="block text-sm font-semibold text-gray-800" htmlFor="email">
+              Email
             </label>
             <input
               className="w-full px-4 py-3 rounded-full border border-gray-400 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal focus:ring-opacity-50 transition-colors duration-200 focus:outline-none"
-              id="username"
-              name="username"
-              placeholder=""
+              id="email"
+              name="email"
+              type="email"
               required
-              type="text"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
-          {/* Password Input */}
           <div className="space-y-2">
             <label className="block text-sm font-semibold text-gray-800" htmlFor="password">
               Password
@@ -49,24 +85,24 @@ export default function Login() {
               className="w-full px-4 py-3 rounded-full border border-gray-400 focus:border-brand-teal focus:ring-2 focus:ring-brand-teal focus:ring-opacity-50 transition-colors duration-200 focus:outline-none"
               id="password"
               name="password"
-              placeholder=""
-              required
               type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 
-          {/* Submit Button */}
           <div className="pt-4">
             <button
-              className="w-full bg-brand-teal hover:bg-brand-tealHover text-white font-bold py-3 px-6 rounded-full transition-colors duration-200 shadow-md"
+              className="w-full bg-brand-teal hover:bg-brand-tealHover text-white font-bold py-3 px-6 rounded-full transition-colors duration-200 shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
               type="submit"
+              disabled={loading}
             >
-              Masuk
+              {loading ? 'Memuat...' : 'Masuk'}
             </button>
           </div>
         </form>
 
-        {/* Footer Links */}
         <div className="mt-6 text-sm text-center">
           <span className="text-gray-600">Belum Punya Akun? </span>
           <Link className="font-bold text-gray-800 hover:text-brand-teal transition-colors duration-200" to="/signup">

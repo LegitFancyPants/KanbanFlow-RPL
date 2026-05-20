@@ -1,9 +1,10 @@
+// src/middleware.js
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 
 export function middleware(req) {
-  const token =
-    req.headers.get("authorization")?.split(" ")[1];
+  const authHeader = req.headers.get("authorization");
+  const token = authHeader?.split(" ")[1];
 
   if (!token) {
     return NextResponse.json(
@@ -13,20 +14,26 @@ export function middleware(req) {
   }
 
   try {
-    jwt.verify(
-      token,
-      process.env.JWT_SECRET
-    );
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    return NextResponse.next();
+    // Teruskan request dengan info user di header
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set("x-user-id", String(decoded.id_user));
+    requestHeaders.set("x-user-email", decoded.email);
+
+    return NextResponse.next({ request: { headers: requestHeaders } });
   } catch {
     return NextResponse.json(
-      { error: "Token invalid" },
-      { status: 403 }
+      { error: "Token tidak valid atau sudah kadaluarsa" },
+      { status: 401 }
     );
   }
 }
 
 export const config = {
-  matcher: ["/api/projects/:path*"],
+  matcher: [
+    "/api/projects/:path*",
+    "/api/tasks/:path*",
+    "/api/subtasks/:path*",
+  ],
 };
