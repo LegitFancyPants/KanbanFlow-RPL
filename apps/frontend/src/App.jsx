@@ -14,7 +14,9 @@ function App() {
       <Route path="/signup" element={<SignUp />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/projects" element={<Projects />} />
-      <Route path="/board" element={<Board />} />
+      <Route path="/board/:projectId" element={<Board />} />
+      {/* fallback redirect */}
+      <Route path="/board" element={<Navigate to="/projects" replace />} />
     </Routes>
   );
 }

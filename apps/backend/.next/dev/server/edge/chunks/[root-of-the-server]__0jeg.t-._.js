@@ -41,6 +41,17 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$jsonwebtoken
 ;
 ;
 function middleware(req) {
+    // Bypass middleware untuk preflight CORS requests dan return dengan CORS headers
+    if (req.method === "OPTIONS") {
+        return new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$esm$2f$server$2f$web$2f$spec$2d$extension$2f$response$2e$js__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__["NextResponse"](null, {
+            status: 204,
+            headers: {
+                "Access-Control-Allow-Origin": "http://localhost:5173",
+                "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization"
+            }
+        });
+    }
     const authHeader = req.headers.get("authorization");
     const token = authHeader?.split(" ")[1];
     if (!token) {
@@ -51,8 +62,10 @@ function middleware(req) {
         });
     }
     try {
+        console.log('DEBUG: JWT_SECRET exists?', !!process.env.JWT_SECRET);
+        console.log('DEBUG: JWT_SECRET length:', process.env.JWT_SECRET?.length);
+        console.log('DEBUG: Token to verify:', token.substring(0, 50) + '...');
         const decoded = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$jsonwebtoken$2f$index$2e$js__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__["default"].verify(token, process.env.JWT_SECRET);
-        // Teruskan request dengan info user di header
         const requestHeaders = new Headers(req.headers);
         requestHeaders.set("x-user-id", String(decoded.id_user));
         requestHeaders.set("x-user-email", decoded.email);
@@ -61,7 +74,8 @@ function middleware(req) {
                 headers: requestHeaders
             }
         });
-    } catch  {
+    } catch (err) {
+        console.log('DEBUG: JWT verification error:', err.message);
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$esm$2f$server$2f$web$2f$spec$2d$extension$2f$response$2e$js__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__["NextResponse"].json({
             error: "Token tidak valid atau sudah kadaluarsa"
         }, {
@@ -73,7 +87,8 @@ const config = {
     matcher: [
         "/api/projects/:path*",
         "/api/tasks/:path*",
-        "/api/subtasks/:path*"
+        "/api/subtasks/:path*",
+        "/api/members/:path*"
     ]
 };
 }),

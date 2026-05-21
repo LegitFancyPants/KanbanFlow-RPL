@@ -1,8 +1,20 @@
 // src/middleware.js
 import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
+import { jwtVerify } from "jose";
 
-export function middleware(req) {
+export async function middleware(req) {
+  // Bypass untuk preflight CORS
+  if (req.method === "OPTIONS") {
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "http://localhost:5173",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      },
+    });
+  }
+
   const authHeader = req.headers.get("authorization");
   const token = authHeader?.split(" ")[1];
 
@@ -14,15 +26,15 @@ export function middleware(req) {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+    const { payload } = await jwtVerify(token, secret);
 
-    // Teruskan request dengan info user di header
     const requestHeaders = new Headers(req.headers);
-    requestHeaders.set("x-user-id", String(decoded.id_user));
-    requestHeaders.set("x-user-email", decoded.email);
+    requestHeaders.set("x-user-id", String(payload.id_user));
+    requestHeaders.set("x-user-email", payload.email);
 
     return NextResponse.next({ request: { headers: requestHeaders } });
-  } catch {
+  } catch (err) {
     return NextResponse.json(
       { error: "Token tidak valid atau sudah kadaluarsa" },
       { status: 401 }
@@ -35,5 +47,6 @@ export const config = {
     "/api/projects/:path*",
     "/api/tasks/:path*",
     "/api/subtasks/:path*",
+    "/api/members/:path*",
   ],
 };

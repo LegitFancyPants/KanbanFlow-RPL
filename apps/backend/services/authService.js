@@ -56,7 +56,7 @@ const authService = {
     const token = jwt.sign(
       { id_user: user.id_user, email: user.email },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "30d" }
     );
 
     return {
