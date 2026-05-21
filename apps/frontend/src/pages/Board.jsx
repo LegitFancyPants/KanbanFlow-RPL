@@ -26,7 +26,7 @@ function toInputDate(dateStr) {
 const STATUS_COLS = ['to do', 'doing', 'done', 'overdue'];
 const STATUS_LABELS = { 'to do': 'TO - DO', doing: 'DOING', done: 'DONE', overdue: 'OVERDUE' };
 
-// ── TaskCard ────────────────────────────────────────────────────────────────
+// ── TaskCard ─────────────────────────────────────────────────────────────────
 function TaskCard({ task, isOverdue, onClick }) {
   if (isOverdue) {
     return (
@@ -66,7 +66,7 @@ function TaskCard({ task, isOverdue, onClick }) {
   );
 }
 
-// ── Main Board ───────────────────────────────────────────────────────────────
+// ── Main Board ────────────────────────────────────────────────────────────────
 export default function Board() {
   const { projectId } = useParams();
   const navigate = useNavigate();
@@ -108,29 +108,59 @@ export default function Board() {
   const [newSubtask,    setNewSubtask]    = useState('');
   const [addingSubtask, setAddingSubtask] = useState(false);
 
-  // ── Fetch data ─────────────────────────────────────────────────────────────
+  // ── Helper: safe JSON parse ────────────────────────────────────────────────
+  async function safeJson(res) {
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      console.error('[Board] Response bukan JSON:', text.slice(0, 300));
+      throw new Error(
+        res.status === 404
+          ? `Endpoint tidak ditemukan (404): ${res.url}`
+          : res.status === 500
+          ? 'Server error (500) — cek log backend'
+          : `Backend mengembalikan bukan JSON (status ${res.status}). Pastikan backend berjalan di ${API}`
+      );
+    }
+  }
+
+  // ── Fetch data ──────────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true);
-      const [projRes, taskRes, memberRes] = await Promise.all([
-        fetch(`${API}/api/projects/${projectId}`,         { headers: authHeaders() }),
-        fetch(`${API}/api/tasks/project/${projectId}`,    { headers: authHeaders() }),
-        fetch(`${API}/api/members/project/${projectId}`,  { headers: authHeaders() }),
-      ]);
+      setError('');
 
+      if (!API) {
+        throw new Error('VITE_API_URL belum diset di file .env frontend');
+      }
+
+      // Fetch project
+      const projRes  = await fetch(`${API}/api/projects/${projectId}`, { headers: authHeaders() });
       if (projRes.status === 401) throw new Error('Sesi habis, silakan login ulang');
-      if (!projRes.ok)            throw new Error('Proyek tidak ditemukan');
-
-      const [projData, taskData, memberData] = await Promise.all([
-        projRes.json(),
-        taskRes.json(),
-        memberRes.json(),
-      ]);
-
+      const projData = await safeJson(projRes);
+      if (!projRes.ok) throw new Error(projData?.error || 'Proyek tidak ditemukan');
       setProject(projData);
-      setTasks(Array.isArray(taskData) ? taskData : []);
-      setMembers(Array.isArray(memberData) ? memberData : []);
+
+      // Fetch tasks
+      const taskRes  = await fetch(`${API}/api/tasks/project/${projectId}`, { headers: authHeaders() });
+      const taskData = await safeJson(taskRes);
+      const taskArr  = Array.isArray(taskData) ? taskData : [];
+      console.log('[Board] tasks:', taskArr.map(t => ({ id: t.id_task, name: t.name, status: t.status })));
+      setTasks(taskArr);
+
+      // Fetch members — opsional, gagal tidak crash board
+      try {
+        const memberRes  = await fetch(`${API}/api/members/project/${projectId}`, { headers: authHeaders() });
+        const memberData = await safeJson(memberRes);
+        setMembers(Array.isArray(memberData) ? memberData : []);
+      } catch (e) {
+        console.warn('[Board] Fetch members gagal (diabaikan):', e.message);
+        setMembers([]);
+      }
+
     } catch (e) {
+      console.error('[Board] fetchAll error:', e.message);
       setError(e.message);
     } finally {
       setLoading(false);
@@ -139,33 +169,73 @@ export default function Board() {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // ── FIX: gunakan String() agar number vs string tidak gagal compare ────────
+  // ── Permissions ─────────────────────────────────────────────────────────────
+  // FIX: Jika members kosong (endpoint belum ada / gagal), izinkan edit
+  // agar fitur tambah kartu tetap bisa dipakai
   const myMembership = members.find(m => String(m.id_user) === String(user.id_user));
-  const canEdit = myMembership?.status === 'owner' || myMembership?.status === 'member';
-  const isOwner = myMembership?.status === 'owner';
+  const canEdit = members.length === 0
+    ? true   // fallback: endpoint members belum tersedia → izinkan semua
+    : (myMembership?.status === 'owner' || myMembership?.status === 'member');
+  const isOwner = members.length === 0
+    ? true
+    : myMembership?.status === 'owner';
 
-  // ── Add task ───────────────────────────────────────────────────────────────
+  // ── Add task ────────────────────────────────────────────────────────────────
   async function handleAddTask(e) {
     e.preventDefault();
     setAddError('');
     setAddLoading(true);
     try {
+      // Gunakan id_user dari form; jika kosong fallback ke user yang login
+      const rawId = addForm.id_user || String(user.id_user || '');
+      const targetUserId = Number(rawId);
+
+      console.log('[Board] handleAddTask → id_user dipilih:', rawId, '→ Number:', targetUserId);
+      console.log('[Board] user dari localStorage:', user);
+      console.log('[Board] addForm:', addForm);
+
+      if (!targetUserId || isNaN(targetUserId)) {
+        throw new Error('Pilih anggota yang ditugaskan terlebih dahulu (id_user kosong)');
+      }
+
+      const payload = {
+        name:        addForm.name,
+        description: addForm.description,
+        id_project:  Number(projectId),
+        id_user:     targetUserId,
+        status:      (addForm.status || 'to do').trim().toLowerCase(),
+        deadline:    addForm.deadline || null,
+      };
+      console.log('[Board] POST /api/tasks payload:', payload);
+
       const res = await fetch(`${API}/api/tasks`, {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({
-          name: addForm.name,
-          description: addForm.description,
-          id_project: Number(projectId),
-          id_user: Number(addForm.id_user),
-          status: addForm.status,
-          deadline: addForm.deadline || null,
-        }),
+        body: JSON.stringify(payload),
       });
-      const data = await res.json();
+
+      const data = await safeJson(res);
+      console.log('[Board] POST /api/tasks response:', res.status, data);
       if (!res.ok) throw new Error(data.error || 'Gagal menambah tugas');
+
+      // Tutup modal dan reset form
       setIsModalOpen(false);
-      setAddForm({ name: '', description: '', id_user: '', deadline: '', status: 'to do' });
+      setAddForm({ name: '', description: '', id_user: String(user.id_user || ''), deadline: '', status: 'to do' });
+
+      // Optimistic update: langsung tambah ke state agar muncul seketika
+      const normalizedStatus = (data.status || payload.status || 'to do').trim().toLowerCase();
+      const newTask = {
+        ...data,
+        status: normalizedStatus,
+        username: data.username
+          || members.find(m => String(m.id_user) === String(targetUserId))?.username
+          || user.username
+          || 'Unknown',
+      };
+      console.log('[Board] newTask optimistic:', newTask);
+      setTasks(prev => [newTask, ...prev]);
+
+      // Re-fetch untuk sinkronisasi dari DB
       await fetchAll();
     } catch (e) {
       setAddError(e.message);
@@ -174,7 +244,22 @@ export default function Board() {
     }
   }
 
-  // ── Open manage modal ──────────────────────────────────────────────────────
+  // ── Open modal tambah kartu ─────────────────────────────────────────────────
+  function openAddModal() {
+    setAddError('');
+    // Pre-select user yang sedang login jika ada di daftar members
+    const selfMember = members.find(m => String(m.id_user) === String(user.id_user));
+    setAddForm({
+      name: '',
+      description: '',
+      id_user: selfMember ? String(selfMember.id_user) : (user.id_user ? String(user.id_user) : ''),
+      deadline: '',
+      status: 'to do',
+    });
+    setIsModalOpen(true);
+  }
+
+  // ── Open manage modal ───────────────────────────────────────────────────────
   async function openManage(task) {
     setSelectedTask(task);
     setManageForm({
@@ -197,7 +282,7 @@ export default function Board() {
     }
   }
 
-  // ── Save edited task ───────────────────────────────────────────────────────
+  // ── Save edited task ────────────────────────────────────────────────────────
   async function handleSaveTask(e) {
     e.preventDefault();
     setSavingTask(true);
@@ -225,7 +310,7 @@ export default function Board() {
     }
   }
 
-  // ── Delete task ────────────────────────────────────────────────────────────
+  // ── Delete task ─────────────────────────────────────────────────────────────
   async function handleDeleteTask() {
     try {
       await fetch(`${API}/api/tasks/${selectedTask.id_task}`, {
@@ -238,7 +323,7 @@ export default function Board() {
     }
   }
 
-  // ── Delete project ─────────────────────────────────────────────────────────
+  // ── Delete project ──────────────────────────────────────────────────────────
   async function handleDeleteProject() {
     try {
       await fetch(`${API}/api/projects/${projectId}`, {
@@ -250,7 +335,7 @@ export default function Board() {
     }
   }
 
-  // ── Invite member ──────────────────────────────────────────────────────────
+  // ── Invite member ───────────────────────────────────────────────────────────
   async function handleInvite(e) {
     e.preventDefault();
     setInviteError('');
@@ -274,7 +359,7 @@ export default function Board() {
     }
   }
 
-  // ── Add subtask ────────────────────────────────────────────────────────────
+  // ── Add subtask ─────────────────────────────────────────────────────────────
   async function handleAddSubtask(e) {
     e.preventDefault();
     if (!newSubtask.trim()) return;
@@ -296,7 +381,7 @@ export default function Board() {
     }
   }
 
-  // ── Toggle subtask ─────────────────────────────────────────────────────────
+  // ── Toggle subtask ──────────────────────────────────────────────────────────
   async function toggleSubtask(sub) {
     const newStatus = sub.status === 'done' ? 'doing' : 'done';
     try {
@@ -312,7 +397,7 @@ export default function Board() {
     }
   }
 
-  // ── Delete subtask ─────────────────────────────────────────────────────────
+  // ── Delete subtask ──────────────────────────────────────────────────────────
   async function deleteSubtask(id) {
     try {
       await fetch(`${API}/api/subtasks/${id}`, { method: 'DELETE', headers: authHeaders() });
@@ -322,14 +407,21 @@ export default function Board() {
     }
   }
 
-  // ── Group tasks by status ──────────────────────────────────────────────────
+  // ── Group tasks by status ───────────────────────────────────────────────────
   const grouped = STATUS_COLS.reduce((acc, s) => { acc[s] = []; return acc; }, {});
   tasks.forEach(t => {
-    if (grouped[t.status] !== undefined) grouped[t.status].push(t);
-    else grouped['to do'].push(t);
+    // Trim + lowercase untuk toleransi variasi dari DB (misal "To Do", " to do ", dll)
+    const s = (t.status || '').trim().toLowerCase();
+    if (grouped[s] !== undefined) {
+      grouped[s].push(t);
+    } else {
+      // Status tidak dikenal → masuk TO-DO sebagai fallback
+      console.warn('[Board] status tidak dikenal:', s, '→ dimasukkan ke TO-DO', t);
+      grouped['to do'].push(t);
+    }
   });
 
-  // ── Loading / Error states ─────────────────────────────────────────────────
+  // ── Loading / Error ─────────────────────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center text-gray-500">Memuat board...</div>
   );
@@ -337,13 +429,12 @@ export default function Board() {
     <div className="min-h-screen flex items-center justify-center text-red-500">{error}</div>
   );
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[var(--color-board-bg)] text-slate-800 font-sans flex flex-col">
 
-      {/* BEGIN: Header */}
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <nav className="bg-white shadow-sm px-6 lg:px-12 py-4 flex flex-col md:flex-row items-center justify-between w-full mb-8">
-        {/* Logo */}
         <div className="flex items-center space-x-4 mb-4 md:mb-0">
           <div className="bg-slate-200 w-12 h-12 rounded-full flex items-center justify-center text-slate-500">
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -354,13 +445,11 @@ export default function Board() {
           <h1 className="text-2xl font-bold tracking-tight">Kanbanflow</h1>
         </div>
 
-        {/* Nav links */}
         <nav className="flex space-x-8 mb-4 md:mb-0 font-semibold text-lg">
           <Link className="text-slate-600 hover:text-slate-900 transition-colors" to="/dashboard">Beranda</Link>
           <Link className="text-[var(--color-primary)] hover:text-teal-500 transition-colors" to="/projects">Proyek Tim</Link>
         </nav>
 
-        {/* User */}
         <div className="flex items-center space-x-3 cursor-pointer hover:bg-slate-50 px-3 py-2 rounded-full transition-colors">
           <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-xs font-bold">
             {getInitials(user.username || '')}
@@ -371,12 +460,11 @@ export default function Board() {
           </svg>
         </div>
       </nav>
-      {/* END: Header */}
 
-      {/* BEGIN: Main Content */}
+      {/* ── Main ───────────────────────────────────────────────────────────── */}
       <main className="max-w-[1600px] mx-auto w-full px-4 md:px-8 flex-1 flex flex-col">
 
-        {/* BEGIN: Project Header */}
+        {/* Project Header */}
         <section className="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-end border-b border-slate-300 pb-4">
           <div className="mb-4 lg:mb-0">
             <h2 className="text-3xl font-extrabold mb-1">{project?.name}</h2>
@@ -401,7 +489,7 @@ export default function Board() {
               </div>
             </button>
 
-            {/* Hapus Proyek — owner only */}
+            {/* Hapus Proyek */}
             {isOwner && (
               <button
                 onClick={() => setIsDeleteProjectOpen(true)}
@@ -415,14 +503,10 @@ export default function Board() {
               </button>
             )}
 
-            {/* Tambah Kartu — owner/member only */}
+            {/* ── TAMBAH KARTU — selalu tampil jika canEdit ── */}
             {canEdit && (
               <button
-                onClick={() => {
-                  setAddError('');
-                  setAddForm({ name: '', description: '', id_user: String(user.id_user), deadline: '', status: 'to do' });
-                  setIsModalOpen(true);
-                }}
+                onClick={openAddModal}
                 className="bg-[var(--color-primary)] text-white font-semibold py-2 px-5 rounded-full flex items-center space-x-1 hover:bg-teal-500 transition-colors shadow-sm"
               >
                 <span className="text-xl leading-none mr-1">+</span>
@@ -431,9 +515,8 @@ export default function Board() {
             )}
           </div>
         </section>
-        {/* END: Project Header */}
 
-        {/* BEGIN: Kanban Board */}
+        {/* Kanban Board */}
         <section className="gap-6 pb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 flex-1">
           {STATUS_COLS.map(status => {
             const isOver = status === 'overdue';
@@ -457,15 +540,13 @@ export default function Board() {
             );
           })}
         </section>
-        {/* END: Kanban Board */}
 
       </main>
-      {/* END: Main Content */}
 
 
-      {/* ════════════════════════════════════════════════════════════════
+      {/* ════════════════════════════════════════════════════
            MODAL: Tambah Kartu Tugas
-         ════════════════════════════════════════════════════════════════ */}
+         ════════════════════════════════════════════════════ */}
       {isModalOpen && (
         <div aria-modal="true" className="fixed inset-0 bg-slate-400/50 backdrop-blur-sm z-50 flex justify-center items-center" role="dialog">
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-2xl p-8 relative m-4 max-h-[90vh] overflow-y-auto">
@@ -480,7 +561,7 @@ export default function Board() {
 
             <div className="mb-8 border-b border-[var(--color-outline-variant)] pb-6">
               <h2 className="text-2xl font-bold mb-2">Tambah Kartu Tugas</h2>
-              <p className="text-[var(--color-on-surface-variant)] text-sm text-gray-600">Tambah tugas baru dan kelola kartu tugas</p>
+              <p className="text-sm text-gray-600">Tambah tugas baru dan kelola kartu tugas</p>
             </div>
 
             {addError && (
@@ -495,6 +576,7 @@ export default function Board() {
                     <label className="block text-sm font-semibold text-gray-900 mb-2">Nama Tugas</label>
                     <input
                       className="w-full px-4 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow text-sm placeholder-gray-400"
+                      placeholder="Nama tugas..."
                       value={addForm.name}
                       onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
                       required
@@ -504,6 +586,7 @@ export default function Board() {
                     <label className="block text-sm font-semibold text-gray-900 mb-2">Deskripsi</label>
                     <textarea
                       className="w-full px-4 py-3 rounded-3xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow text-sm placeholder-gray-400 resize-none flex-1 min-h-[120px]"
+                      placeholder="Deskripsi tugas..."
                       value={addForm.description}
                       onChange={e => setAddForm(f => ({ ...f, description: e.target.value }))}
                     />
@@ -522,9 +605,15 @@ export default function Board() {
                         required
                       >
                         <option value="" disabled>Pilih User</option>
-                        {members.map(m => (
-                          <option key={m.id_user} value={m.id_user}>{m.username}</option>
-                        ))}
+                        {/* Jika members tersedia dari API, tampilkan; jika tidak, tampilkan user sendiri */}
+                        {members.length > 0
+                          ? members.map(m => (
+                              <option key={m.id_user} value={m.id_user}>{m.username}</option>
+                            ))
+                          : (
+                              <option value={user.id_user}>{user.username || 'Saya'}</option>
+                            )
+                        }
                       </select>
                       <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
                         <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
@@ -584,9 +673,9 @@ export default function Board() {
       )}
 
 
-      {/* ════════════════════════════════════════════════════════════════
+      {/* ════════════════════════════════════════════════════
            MODAL: Anggota Tim
-         ════════════════════════════════════════════════════════════════ */}
+         ════════════════════════════════════════════════════ */}
       {isTeamModalOpen && (
         <div aria-modal="true" className="fixed inset-0 bg-slate-400/50 backdrop-blur-sm z-50 flex justify-center items-center" role="dialog">
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-[600px] flex flex-col overflow-hidden relative m-4 max-h-[90vh]">
@@ -595,10 +684,7 @@ export default function Board() {
                 <h2 className="text-2xl font-bold text-gray-900 mb-1">Anggota Tim</h2>
                 <p className="text-sm text-gray-600">Daftar anggota tim yang bergabung ke dalam proyek</p>
               </div>
-              <button
-                onClick={() => setIsTeamModalOpen(false)}
-                className="text-gray-500 hover:text-gray-800 hover:bg-gray-100 p-2 rounded-full transition-colors"
-              >
+              <button onClick={() => setIsTeamModalOpen(false)} className="text-gray-500 hover:text-gray-800 hover:bg-gray-100 p-2 rounded-full transition-colors">
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -606,29 +692,32 @@ export default function Board() {
             </div>
 
             <div className="p-6 flex-1 overflow-y-auto">
-              <ul className="flex flex-col gap-4">
-                {members.map(m => (
-                  <li key={m.id_member} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold
+              {members.length === 0 ? (
+                <p className="text-center text-sm text-slate-400 py-8">Belum ada data anggota</p>
+              ) : (
+                <ul className="flex flex-col gap-4">
+                  {members.map(m => (
+                    <li key={m.id_member} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold
+                          ${m.status === 'owner' ? 'bg-[var(--color-primary)] text-white' : 'bg-gray-100 text-gray-600'}`}>
+                          {getInitials(m.username)}
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-900">{m.username}</h3>
+                          <p className="text-sm text-gray-500">{m.email}</p>
+                        </div>
+                      </div>
+                      <span className={`px-3 py-1 text-xs font-semibold rounded-full
                         ${m.status === 'owner' ? 'bg-[var(--color-primary)] text-white' : 'bg-gray-100 text-gray-600'}`}>
-                        {getInitials(m.username)}
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-900">{m.username}</h3>
-                        <p className="text-sm text-gray-500">{m.email}</p>
-                      </div>
-                    </div>
-                    <span className={`px-3 py-1 text-xs font-semibold rounded-full
-                      ${m.status === 'owner' ? 'bg-[var(--color-primary)] text-white' : 'bg-gray-100 text-gray-600'}`}>
-                      {m.status === 'owner' ? 'Pemilik' : m.status === 'member' ? 'Anggota' : 'Penonton'}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+                        {m.status === 'owner' ? 'Pemilik' : m.status === 'member' ? 'Anggota' : 'Penonton'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
-            {/* Undang — owner only */}
             {isOwner && (
               <div className="p-6 bg-white border-t border-gray-200">
                 <label className="block text-sm font-semibold text-gray-900 mb-3">Undang Anggota Baru :</label>
@@ -657,9 +746,9 @@ export default function Board() {
       )}
 
 
-      {/* ════════════════════════════════════════════════════════════════
+      {/* ════════════════════════════════════════════════════
            MODAL: Kelola Kartu Tugas
-         ════════════════════════════════════════════════════════════════ */}
+         ════════════════════════════════════════════════════ */}
       {isManageTaskModalOpen && selectedTask && (
         <div aria-modal="true" className="fixed inset-0 bg-slate-400/50 backdrop-blur-sm z-50 flex justify-center items-center" role="dialog">
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-2xl flex flex-col overflow-hidden relative m-4 max-h-[90vh]">
@@ -684,7 +773,6 @@ export default function Board() {
 
               <form id="manage-task-form" onSubmit={handleSaveTask}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                  {/* Kiri */}
                   <div className="flex flex-col gap-6">
                     <div>
                       <label className="block text-sm font-semibold text-gray-900 mb-2">Nama Tugas</label>
@@ -709,7 +797,6 @@ export default function Board() {
                     </div>
                   </div>
 
-                  {/* Kanan */}
                   <div className="flex flex-col gap-6">
                     <div>
                       <label className="block text-sm font-semibold text-gray-900 mb-2">Ditugaskan Ke</label>
@@ -721,9 +808,12 @@ export default function Board() {
                           onChange={e => setManageForm(f => ({ ...f, id_user: e.target.value }))}
                           disabled={!editMode}
                         >
-                          {members.map(m => (
-                            <option key={m.id_user} value={m.id_user}>{m.username}</option>
-                          ))}
+                          {members.length > 0
+                            ? members.map(m => (
+                                <option key={m.id_user} value={m.id_user}>{m.username}</option>
+                              ))
+                            : <option value={selectedTask.id_user}>{selectedTask.username}</option>
+                          }
                         </select>
                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
                           <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
@@ -744,7 +834,7 @@ export default function Board() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">Status</label>
+                      <label className="block text-sm font-semibold text-gray-900 mb-2">Status Awal</label>
                       <div className="relative">
                         <select
                           className={`w-full px-5 py-3 rounded-full border focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow text-sm bg-transparent appearance-none
@@ -766,7 +856,7 @@ export default function Board() {
                   </div>
                 </div>
 
-                {/* Subtask section */}
+                {/* Subtask */}
                 {canEdit && (
                   <div className="mt-6 border-t border-gray-100 pt-6">
                     <h3 className="text-sm font-semibold text-gray-900 mb-3">Subtask</h3>
@@ -788,11 +878,7 @@ export default function Board() {
                           <span className={`flex-1 text-sm ${sub.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                             {sub.name}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => deleteSubtask(sub.id_subtask)}
-                            className="text-gray-400 hover:text-red-500 transition-colors"
-                          >
+                          <button type="button" onClick={() => deleteSubtask(sub.id_subtask)} className="text-gray-400 hover:text-red-500 transition-colors">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                               <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
@@ -871,9 +957,9 @@ export default function Board() {
       )}
 
 
-      {/* ════════════════════════════════════════════════════════════════
+      {/* ════════════════════════════════════════════════════
            MODAL: Konfirmasi Hapus Proyek
-         ════════════════════════════════════════════════════════════════ */}
+         ════════════════════════════════════════════════════ */}
       {isDeleteProjectOpen && (
         <div aria-modal="true" className="fixed inset-0 bg-slate-400/50 backdrop-blur-sm z-50 flex justify-center items-center" role="dialog">
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-md p-8 m-4 text-center">

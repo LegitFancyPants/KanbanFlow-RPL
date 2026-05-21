@@ -3,13 +3,13 @@ import pool from "@/lib/db";
 
 export async function GET(req, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const result = await pool.query(
-      `SELECT t.*, u.username
+      `SELECT t.*, COALESCE(u.username, 'Unknown') AS username
        FROM tasks t
-       JOIN users u ON t.id_user = u.id_user
+       LEFT JOIN users u ON t.id_user = u.id_user
        WHERE t.id_task = $1`,
-      [id]
+      [Number(id)]
     );
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
@@ -22,7 +22,7 @@ export async function GET(req, { params }) {
 
 export async function PUT(req, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
     const { name, description, status, id_user, deadline } = body;
 
@@ -35,7 +35,7 @@ export async function PUT(req, { params }) {
            deadline = COALESCE($5, deadline)
        WHERE id_task = $6
        RETURNING *`,
-      [name, description, status, id_user, deadline, id]
+      [name, description, status, id_user, deadline, Number(id)]
     );
 
     if (result.rows.length === 0) {
@@ -49,8 +49,8 @@ export async function PUT(req, { params }) {
 
 export async function DELETE(req, { params }) {
   try {
-    const { id } = params;
-    await pool.query("DELETE FROM tasks WHERE id_task = $1", [id]);
+    const { id } = await params;
+    await pool.query("DELETE FROM tasks WHERE id_task = $1", [Number(id)]);
     return NextResponse.json({ message: "Task deleted" });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

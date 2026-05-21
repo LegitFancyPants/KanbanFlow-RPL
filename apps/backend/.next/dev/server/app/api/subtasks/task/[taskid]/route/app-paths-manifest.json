@@ -1,0 +1,3 @@
+{
+  "/api/subtasks/task/[taskid]/route": "app/api/subtasks/task/[taskid]/route.js"
+}

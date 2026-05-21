@@ -3,10 +3,10 @@ import pool from "@/lib/db";
 
 export async function GET(req, { params }) {
   try {
-    const { taskid } = params;
+    const { taskid } = await params;
     const result = await pool.query(
       `SELECT * FROM subtasks WHERE id_task = $1 ORDER BY id_subtask ASC`,
-      [taskid]
+      [Number(taskid)]
     );
     return NextResponse.json(result.rows);
   } catch (err) {

@@ -3,7 +3,7 @@ import pool from "@/lib/db";
 
 export async function PUT(req, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
     const { name, status } = body;
 
@@ -27,7 +27,7 @@ export async function PUT(req, { params }) {
 
 export async function DELETE(req, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     await pool.query("DELETE FROM subtasks WHERE id_subtask = $1", [id]);
     return NextResponse.json({ message: "Subtask deleted" });
   } catch (err) {

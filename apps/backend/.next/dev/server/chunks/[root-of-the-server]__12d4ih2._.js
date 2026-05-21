@@ -96,9 +96,9 @@ async function GET() {
         t.deadline,
         t.id_project,
         t.id_user,
-        u.username
+        COALESCE(u.username, 'Unknown') AS username
       FROM tasks t
-      JOIN users u ON t.id_user = u.id_user
+      LEFT JOIN users u ON t.id_user = u.id_user
       ORDER BY t.created_at DESC
     `);
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json(result.rows);
@@ -126,15 +126,26 @@ async function POST(req) {
        RETURNING *`, [
             name,
             description || null,
-            id_project,
-            id_user,
-            status || "to do",
+            Number(id_project),
+            Number(id_user),
+            (status || "to do").trim().toLowerCase(),
             deadline || null
         ]);
-        return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json(result.rows[0], {
+        const task = result.rows[0];
+        // Ambil username untuk response yang lengkap
+        try {
+            const userRes = await __TURBOPACK__imported__module__$5b$project$5d2f$apps$2f$backend$2f$lib$2f$db$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].query(`SELECT username FROM users WHERE id_user = $1`, [
+                Number(id_user)
+            ]);
+            task.username = userRes.rows[0]?.username || 'Unknown';
+        } catch  {
+            task.username = 'Unknown';
+        }
+        return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json(task, {
             status: 201
         });
     } catch (err) {
+        console.error('[POST /api/tasks] error:', err.message);
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
             error: err.message
         }, {

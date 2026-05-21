@@ -88,18 +88,18 @@ var __turbopack_async_dependencies__ = __turbopack_handle_async_dependencies__([
 ;
 async function GET(req, { params }) {
     try {
-        const { id } = await params; // ← tambah await
-        const project = await __TURBOPACK__imported__module__$5b$project$5d2f$apps$2f$backend$2f$lib$2f$db$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].query(`SELECT * FROM projects WHERE id_project = $1`, [
-            id
+        const { id } = await params;
+        const result = await __TURBOPACK__imported__module__$5b$project$5d2f$apps$2f$backend$2f$lib$2f$db$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].query(`SELECT * FROM projects WHERE id_project = $1`, [
+            Number(id)
         ]);
-        if (project.rows.length === 0) {
+        if (result.rows.length === 0) {
             return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
                 error: "Project not found"
             }, {
                 status: 404
             });
         }
-        return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json(project.rows[0]);
+        return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json(result.rows[0]);
     } catch (err) {
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
             error: err.message
@@ -110,12 +110,22 @@ async function GET(req, { params }) {
 }
 async function PUT(req, { params }) {
     try {
-        const { id } = await params; // ← tambah await
+        const { id } = await params;
         const body = await req.json();
-        const result = await __TURBOPACK__imported__module__$5b$project$5d2f$apps$2f$backend$2f$lib$2f$db$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].query(`UPDATE projects SET name = $1 WHERE id_project = $2 RETURNING *`, [
-            body.name,
-            id
+        const { name, description } = body;
+        const result = await __TURBOPACK__imported__module__$5b$project$5d2f$apps$2f$backend$2f$lib$2f$db$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].query(`UPDATE projects SET name = COALESCE($1, name), description = COALESCE($2, description)
+       WHERE id_project = $3 RETURNING *`, [
+            name,
+            description,
+            Number(id)
         ]);
+        if (result.rows.length === 0) {
+            return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
+                error: "Project not found"
+            }, {
+                status: 404
+            });
+        }
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json(result.rows[0]);
     } catch (err) {
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
@@ -127,9 +137,9 @@ async function PUT(req, { params }) {
 }
 async function DELETE(req, { params }) {
     try {
-        const { id } = await params; // ← tambah await
+        const { id } = await params;
         await __TURBOPACK__imported__module__$5b$project$5d2f$apps$2f$backend$2f$lib$2f$db$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].query(`DELETE FROM projects WHERE id_project = $1`, [
-            id
+            Number(id)
         ]);
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
             message: "Project deleted"
