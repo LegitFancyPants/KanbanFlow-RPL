@@ -3,7 +3,7 @@ const nextConfig = {
   async headers() {
     // CORS: izinkan localhost saat dev dan domain Vercel saat production
     const allowedOrigin =
-      process.env.FRONTEND_URL || "http://localhost:5173";
+      process.env.FRONTEND_URL || "https://kanban-flow-rpl-frontend.vercel.app";
 
     return [
       {
