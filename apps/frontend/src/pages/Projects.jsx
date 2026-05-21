@@ -64,9 +64,16 @@ export default function Projects() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
   const [error, setError] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  function handleLogout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  }
 
   async function fetchProjects() {
     try {
@@ -122,14 +129,29 @@ export default function Projects() {
           <Link className="text-[var(--color-textMuted)] hover:text-[var(--color-textMain)] transition-colors" to="/dashboard">Beranda</Link>
           <Link className="text-[var(--color-primary)]" to="/projects">Proyek Tim</Link>
         </div>
-        <div className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 px-3 py-2 rounded-full transition-colors">
-          <div className="w-8 h-8 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white text-xs font-bold">
-            {getInitials(user.username || '')}
+        <div className="relative">
+          <div
+            className="flex items-center gap-3 cursor-pointer hover:bg-slate-50 px-3 py-2 rounded-full transition-colors"
+            onClick={() => setDropdownOpen(o => !o)}
+          >
+            <div className="w-8 h-8 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white text-xs font-bold">
+              {getInitials(user.username || '')}
+            </div>
+            <span className="font-medium hidden sm:block">{user.username || 'User'}</span>
+            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M19.5 8.25l-7.5 7.5-7.5-7.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </div>
-          <span className="font-medium hidden sm:block">{user.username || 'User'}</span>
-          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M19.5 8.25l-7.5 7.5-7.5-7.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          {dropdownOpen && (
+            <div className="absolute right-0 mt-1 w-40 bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden z-50">
+              <button
+                onClick={handleLogout}
+                className="w-full text-left px-4 py-3 text-sm text-red-500 font-semibold hover:bg-red-50 transition-colors"
+              >
+                Keluar
+              </button>
+            </div>
+          )}
         </div>
       </nav>
 

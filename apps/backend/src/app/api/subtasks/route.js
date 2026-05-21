@@ -1,28 +1,11 @@
-// apps/backend/src/app/api/subtasks/route.js
-// [FILE INI KOSONG DI PROYEK ASLI — INI FILE BARU]
-// Fitur: Buat subtask baru
-// Dipakai di Board.jsx → handleAddSubtask()
-
+// subtasks/route.js — buat subtask (owner/member)
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { canEdit, forbidden } from "@/lib/roleGuard";
 
-// GET: Ambil semua subtask (jarang dipakai langsung)
-export async function GET() {
-  try {
-    const result = await pool.query(
-      `SELECT * FROM subtasks ORDER BY id_subtask ASC`
-    );
-    return NextResponse.json(result.rows);
-  } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
-}
-
-// POST: Buat subtask baru di bawah sebuah task
-// Body: { name: string, id_task: number }
-// Dipakai di Board.jsx → handleAddSubtask()
 export async function POST(req) {
   try {
+    const userId = req.headers.get("x-user-id");
     const body = await req.json();
     const { name, id_task } = body;
 
@@ -33,25 +16,24 @@ export async function POST(req) {
       );
     }
 
-    // Cek apakah task yang dimaksud ada
-    const taskCheck = await pool.query(
-      `SELECT id_task FROM tasks WHERE id_task = $1`,
-      [id_task]
+    // Ambil id_project dari task
+    const taskRes = await pool.query(
+      `SELECT id_project FROM tasks WHERE id_task = $1`,
+      [Number(id_task)]
     );
-
-    if (taskCheck.rows.length === 0) {
-      return NextResponse.json(
-        { error: "Task tidak ditemukan" },
-        { status: 404 }
-      );
+    if (taskRes.rows.length === 0) {
+      return NextResponse.json({ error: "Task tidak ditemukan" }, { status: 404 });
     }
 
-    // Status default subtask adalah 'doing' sesuai schema (subtask_status_enum)
+    // Hanya owner/member yang boleh tambah subtask
+    if (!(await canEdit(userId, taskRes.rows[0].id_project))) {
+      return forbidden("Hanya Owner atau Member yang dapat menambah subtask");
+    }
+
     const result = await pool.query(
       `INSERT INTO subtasks (name, id_task, status)
-       VALUES ($1, $2, 'doing')
-       RETURNING *`,
-      [name, id_task]
+       VALUES ($1, $2, 'to do') RETURNING *`,
+      [name, Number(id_task)]
     );
 
     return NextResponse.json(result.rows[0], { status: 201 });

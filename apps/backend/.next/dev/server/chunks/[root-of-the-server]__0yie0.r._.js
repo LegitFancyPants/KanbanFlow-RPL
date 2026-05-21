@@ -74,6 +74,7 @@ __turbopack_context__.s([
     "default",
     ()=>__TURBOPACK__default__export__
 ]);
+// lib/db.js
 var __TURBOPACK__imported__module__$5b$externals$5d2f$pg__$5b$external$5d$__$28$pg$2c$__esm_import$2c$__$5b$project$5d2f$node_modules$2f$pg$29$__ = __turbopack_context__.i("[externals]/pg [external] (pg, esm_import, [project]/node_modules/pg)");
 var __turbopack_async_dependencies__ = __turbopack_handle_async_dependencies__([
     __TURBOPACK__imported__module__$5b$externals$5d2f$pg__$5b$external$5d$__$28$pg$2c$__esm_import$2c$__$5b$project$5d2f$node_modules$2f$pg$29$__
@@ -82,9 +83,10 @@ var __turbopack_async_dependencies__ = __turbopack_handle_async_dependencies__([
 ;
 const pool = new __TURBOPACK__imported__module__$5b$externals$5d2f$pg__$5b$external$5d$__$28$pg$2c$__esm_import$2c$__$5b$project$5d2f$node_modules$2f$pg$29$__["Pool"]({
     connectionString: process.env.DATABASE_URL,
-    ssl: {
+    // SSL aktif di production (Vercel/Neon), nonaktif di local jika tidak pakai SSL
+    ssl: process.env.DATABASE_URL?.includes("sslmode=require") ? {
         rejectUnauthorized: false
-    }
+    } : false
 });
 const __TURBOPACK__default__export__ = pool;
 __turbopack_async_result__();

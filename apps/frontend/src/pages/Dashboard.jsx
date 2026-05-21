@@ -1,7 +1,21 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+
+function getInitials(name = '') {
+  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const username = user.username || 'User';
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  function handleLogout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  }
   return (
     <div className="bg-[var(--color-surface)] text-slate-800 font-sans min-h-screen flex flex-col">
       {/* BEGIN: Navigation Bar (Full Width) */}
@@ -23,9 +37,26 @@ export default function Dashboard() {
         </div>
 
         {/* User Profile */}
-        <div className="flex items-center space-x-3 cursor-pointer hover:bg-slate-50 px-3 py-2 rounded-full transition-colors">
-          <div className="w-8 h-8 bg-slate-200 rounded-full"></div>
-          <span className="text-sm font-semibold text-slate-700 hidden sm:block">Safira Zahra Asshifa <span className="text-slate-400 ml-1">▼</span></span>
+        <div className="relative">
+          <div
+            className="flex items-center space-x-3 cursor-pointer hover:bg-slate-50 px-3 py-2 rounded-full transition-colors"
+            onClick={() => setDropdownOpen(o => !o)}
+          >
+            <div className="w-8 h-8 bg-[var(--color-primary)] rounded-full flex items-center justify-center text-white text-xs font-bold">
+              {getInitials(username)}
+            </div>
+            <span className="text-sm font-semibold text-slate-700 hidden sm:block">{username} <span className="text-slate-400 ml-1">▼</span></span>
+          </div>
+          {dropdownOpen && (
+            <div className="absolute right-0 mt-1 w-40 bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden z-50">
+              <button
+                onClick={handleLogout}
+                className="w-full text-left px-4 py-3 text-sm text-red-500 font-semibold hover:bg-red-50 transition-colors"
+              >
+                Keluar
+              </button>
+            </div>
+          )}
         </div>
       </nav>
       {/* END: Navigation Bar */}
@@ -42,7 +73,7 @@ export default function Dashboard() {
                   Alur Kerja Lebih<br />Terukur dan Presisi
                 </h1>
                 <p className="text-white/90 text-lg md:text-xl font-medium max-w-md mt-4">
-                  Selamat datang kembali, Safira. Kamu memiliki 2 tugas prioritas tinggi yang perlu ditinjau.
+                  Selamat datang kembali, {username}. Kamu memiliki 2 tugas prioritas tinggi yang perlu ditinjau.
                 </p>
               </div>
               <div className="mt-12 lg:mt-16">

@@ -1,11 +1,8 @@
-// apps/backend/src/app/api/members/route.js
-// [FILE INI KOSONG DI PROYEK ASLI — INI FILE BARU]
-// Fitur: Undang anggota ke proyek berdasarkan email (sesuai frontend Board.jsx handleInvite)
-
+// members/route.js — undang anggota (hanya owner)
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { isOwner, forbidden } from "@/lib/roleGuard";
 
-// GET: Ambil semua members (jarang dipakai langsung, tapi tersedia)
 export async function GET(req) {
   try {
     const result = await pool.query(
@@ -21,11 +18,11 @@ export async function GET(req) {
   }
 }
 
-// POST: Undang anggota baru ke proyek berdasarkan email
-// Body: { email: string, id_project: number, status?: 'member' | 'viewer' }
-// Dipakai di Board.jsx → handleInvite()
+// Undang anggota ke proyek — hanya owner yang boleh
+// Body: { email, id_project, status?: 'member' | 'viewer' }
 export async function POST(req) {
   try {
+    const userId = req.headers.get("x-user-id");
     const body = await req.json();
     const { email, id_project, status } = body;
 
@@ -34,6 +31,11 @@ export async function POST(req) {
         { error: "email dan id_project harus diisi" },
         { status: 400 }
       );
+    }
+
+    // Hanya owner yang boleh mengundang anggota
+    if (!(await isOwner(userId, id_project))) {
+      return forbidden("Hanya Owner yang dapat mengundang anggota");
     }
 
     // Cari user berdasarkan email
@@ -51,7 +53,7 @@ export async function POST(req) {
 
     const targetUser = userResult.rows[0];
 
-    // Cek apakah user sudah menjadi anggota proyek ini
+    // Cek apakah sudah menjadi anggota
     const existing = await pool.query(
       `SELECT id_member FROM members WHERE id_user = $1 AND id_project = $2`,
       [targetUser.id_user, id_project]
@@ -64,22 +66,17 @@ export async function POST(req) {
       );
     }
 
-    // Tambahkan sebagai member (default: 'member')
+    // Default: member; bisa juga viewer
     const memberStatus = status === "viewer" ? "viewer" : "member";
 
     const result = await pool.query(
       `INSERT INTO members (id_user, id_project, status)
-       VALUES ($1, $2, $3)
-       RETURNING *`,
+       VALUES ($1, $2, $3) RETURNING *`,
       [targetUser.id_user, id_project, memberStatus]
     );
 
     return NextResponse.json(
-      {
-        ...result.rows[0],
-        username: targetUser.username,
-        email: targetUser.email,
-      },
+      { ...result.rows[0], username: targetUser.username, email: targetUser.email },
       { status: 201 }
     );
   } catch (err) {

@@ -27,15 +27,12 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$jose$2f$dist
 ;
 ;
 async function middleware(req) {
-    // Bypass untuk preflight CORS
+    const origin = req.headers.get("origin") || "";
+    // Bypass preflight CORS — izinkan origin yang cocok
     if (req.method === "OPTIONS") {
         return new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$esm$2f$server$2f$web$2f$spec$2d$extension$2f$response$2e$js__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__["NextResponse"](null, {
             status: 204,
-            headers: {
-                "Access-Control-Allow-Origin": "http://localhost:5173",
-                "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type, Authorization"
-            }
+            headers: corsHeaders(origin)
         });
     }
     const authHeader = req.headers.get("authorization");
@@ -44,7 +41,8 @@ async function middleware(req) {
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$esm$2f$server$2f$web$2f$spec$2d$extension$2f$response$2e$js__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__["NextResponse"].json({
             error: "Token tidak ditemukan"
         }, {
-            status: 401
+            status: 401,
+            headers: corsHeaders(origin)
         });
     }
     try {
@@ -58,13 +56,26 @@ async function middleware(req) {
                 headers: requestHeaders
             }
         });
-    } catch (err) {
+    } catch  {
         return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$esm$2f$server$2f$web$2f$spec$2d$extension$2f$response$2e$js__$5b$middleware$2d$edge$5d$__$28$ecmascript$29$__["NextResponse"].json({
             error: "Token tidak valid atau sudah kadaluarsa"
         }, {
-            status: 401
+            status: 401,
+            headers: corsHeaders(origin)
         });
     }
+}
+function corsHeaders(origin) {
+    const allowedOrigins = [
+        "http://localhost:5173",
+        process.env.FRONTEND_URL
+    ].filter(Boolean);
+    const allow = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+    return {
+        "Access-Control-Allow-Origin": allow,
+        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+    };
 }
 const config = {
     matcher: [

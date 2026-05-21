@@ -1,27 +1,26 @@
+// members/project/[projectid]/route.js
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { canView, isOwner, forbidden } from "@/lib/roleGuard";
 
 export async function GET(req, { params }) {
   try {
-    const { projectid } = await params; // ← FIX: await params
+    const userId = req.headers.get("x-user-id");
+    const { projectid } = await params;
+
+    // Viewer+ boleh lihat daftar anggota
+    if (!(await canView(userId, projectid))) {
+      return forbidden("Anda tidak memiliki akses ke proyek ini");
+    }
 
     const result = await pool.query(
-      `SELECT
-        m.id_member,
-        m.status,
-        m.id_user,
-        m.id_project,
-        u.username,
-        u.email
+      `SELECT m.id_member, m.status, m.id_user, m.id_project,
+              u.username, u.email
        FROM members m
        JOIN users u ON m.id_user = u.id_user
        WHERE m.id_project = $1
        ORDER BY
-         CASE m.status
-           WHEN 'owner'  THEN 1
-           WHEN 'member' THEN 2
-           WHEN 'viewer' THEN 3
-         END,
+         CASE m.status WHEN 'owner' THEN 1 WHEN 'member' THEN 2 WHEN 'viewer' THEN 3 END,
          m.id_member ASC`,
       [projectid]
     );
@@ -34,7 +33,14 @@ export async function GET(req, { params }) {
 
 export async function DELETE(req, { params }) {
   try {
-    const { projectid } = await params; // ← FIX: await params
+    const userId = req.headers.get("x-user-id");
+    const { projectid } = await params;
+
+    // Hanya owner yang boleh hapus anggota
+    if (!(await isOwner(userId, projectid))) {
+      return forbidden("Hanya Owner yang dapat menghapus anggota");
+    }
+
     const body = await req.json();
     const { id_member } = body;
 

@@ -3,15 +3,13 @@ import { NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
 export async function middleware(req) {
-  // Bypass untuk preflight CORS
+  const origin = req.headers.get("origin") || "";
+
+  // Bypass preflight CORS — izinkan origin yang cocok
   if (req.method === "OPTIONS") {
     return new NextResponse(null, {
       status: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "http://localhost:5173",
-        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      },
+      headers: corsHeaders(origin),
     });
   }
 
@@ -21,7 +19,7 @@ export async function middleware(req) {
   if (!token) {
     return NextResponse.json(
       { error: "Token tidak ditemukan" },
-      { status: 401 }
+      { status: 401, headers: corsHeaders(origin) }
     );
   }
 
@@ -30,16 +28,31 @@ export async function middleware(req) {
     const { payload } = await jwtVerify(token, secret);
 
     const requestHeaders = new Headers(req.headers);
-    requestHeaders.set("x-user-id", String(payload.id_user));
+    requestHeaders.set("x-user-id",    String(payload.id_user));
     requestHeaders.set("x-user-email", payload.email);
 
     return NextResponse.next({ request: { headers: requestHeaders } });
-  } catch (err) {
+  } catch {
     return NextResponse.json(
       { error: "Token tidak valid atau sudah kadaluarsa" },
-      { status: 401 }
+      { status: 401, headers: corsHeaders(origin) }
     );
   }
+}
+
+function corsHeaders(origin) {
+  const allowedOrigins = [
+    "http://localhost:5173",
+    process.env.FRONTEND_URL,
+  ].filter(Boolean);
+
+  const allow = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+
+  return {
+    "Access-Control-Allow-Origin":  allow,
+    "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  };
 }
 
 export const config = {

@@ -77,6 +77,13 @@ export default function Board() {
   const [members, setMembers]   = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  function handleLogout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  }
 
   // Modal state
   const [isModalOpen,           setIsModalOpen]           = useState(false);
@@ -408,10 +415,26 @@ export default function Board() {
   }
 
   // ── Group tasks by status ───────────────────────────────────────────────────
+  // Helper: cek apakah deadline sudah lewat (bandingkan tanggal saja, tanpa jam)
+  function isDeadlinePassed(deadlineStr) {
+    if (!deadlineStr) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const deadline = new Date(deadlineStr);
+    deadline.setHours(0, 0, 0, 0);
+    return deadline < today;
+  }
+
   const grouped = STATUS_COLS.reduce((acc, s) => { acc[s] = []; return acc; }, {});
   tasks.forEach(t => {
-    // Trim + lowercase untuk toleransi variasi dari DB (misal "To Do", " to do ", dll)
     const s = (t.status || '').trim().toLowerCase();
+
+    // Tugas yang bukan 'done' dan deadline-nya sudah lewat → paksa masuk overdue
+    if (s !== 'done' && isDeadlinePassed(t.deadline)) {
+      grouped['overdue'].push(t);
+      return;
+    }
+
     if (grouped[s] !== undefined) {
       grouped[s].push(t);
     } else {
@@ -450,14 +473,29 @@ export default function Board() {
           <Link className="text-[var(--color-primary)] hover:text-teal-500 transition-colors" to="/projects">Proyek Tim</Link>
         </nav>
 
-        <div className="flex items-center space-x-3 cursor-pointer hover:bg-slate-50 px-3 py-2 rounded-full transition-colors">
-          <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-xs font-bold">
-            {getInitials(user.username || '')}
+        <div className="relative">
+          <div
+            className="flex items-center space-x-3 cursor-pointer hover:bg-slate-50 px-3 py-2 rounded-full transition-colors"
+            onClick={() => setDropdownOpen(o => !o)}
+          >
+            <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-xs font-bold">
+              {getInitials(user.username || '')}
+            </div>
+            <span className="font-semibold text-slate-700 hidden sm:block">{user.username || 'User'}</span>
+            <svg className="h-4 w-4 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+              <path clipRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" fillRule="evenodd" />
+            </svg>
           </div>
-          <span className="font-semibold text-slate-700 hidden sm:block">{user.username || 'User'}</span>
-          <svg className="h-4 w-4 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-            <path clipRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" fillRule="evenodd" />
-          </svg>
+          {dropdownOpen && (
+            <div className="absolute right-0 mt-1 w-40 bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden z-50">
+              <button
+                onClick={handleLogout}
+                className="w-full text-left px-4 py-3 text-sm text-red-500 font-semibold hover:bg-red-50 transition-colors"
+              >
+                Keluar
+              </button>
+            </div>
+          )}
         </div>
       </nav>
 
