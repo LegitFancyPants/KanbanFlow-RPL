@@ -23,19 +23,14 @@ const ROLE_LABEL = { owner: 'Pemilik', member: 'Anggota', viewer: 'Penonton' };
 function ProjectCard({ project, onOpen }) {
   return (
     <article onClick={() => onOpen(project.id_project)} className="bg-[var(--color-card)] rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col relative overflow-hidden transition-transform hover:-translate-y-1 cursor-pointer">
-      <div className="flex justify-between items-start mb-4">
-        <div className="w-16 h-16 bg-gray-200 rounded-2xl flex items-center justify-center text-gray-500">
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-            <path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-        <span className="bg-[var(--color-primary)] text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+      <div className="flex justify-between items-start mb-4 gap-4">
+        <h3 className="text-xl font-bold leading-tight break-words flex-1">{project.name}</h3>
+        <span className="bg-[var(--color-primary)] text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide whitespace-nowrap">
           {ROLE_LABEL[project.user_role] || 'Anggota'}
         </span>
       </div>
 
-      <h3 className="text-xl font-bold mb-2 leading-tight">{project.name}</h3>
-      <p className="text-sm text-[var(--color-textMuted)] mb-6 flex-1">
+      <p className="text-sm text-[var(--color-textMuted)] mb-6 flex-1 line-clamp-3">
         {project.description || 'Tidak ada deskripsi.'}
       </p>
 
