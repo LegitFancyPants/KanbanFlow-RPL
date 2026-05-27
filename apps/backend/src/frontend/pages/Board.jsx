@@ -489,12 +489,6 @@ export default function Board() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <nav className="bg-white shadow-sm px-6 lg:px-12 py-4 flex flex-col md:flex-row items-center justify-between w-full mb-8">
         <div className="flex items-center space-x-4 mb-4 md:mb-0">
-          <div className="bg-slate-200 w-12 h-12 rounded-full flex items-center justify-center text-slate-500">
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-                strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-            </svg>
-          </div>
           <img src="/logo.png" alt="KanbanFlow Logo" className="h-8 w-auto object-contain" />
         </div>
 

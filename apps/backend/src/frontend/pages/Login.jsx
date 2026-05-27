@@ -45,19 +45,13 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-[var(--color-brand-bg)] text-[var(--color-brand-text)] flex items-center justify-center p-4">
       <main className="w-full max-w-md bg-white rounded-3xl shadow-lg p-10 flex flex-col items-center">
-        {/* Logo Placeholder */}
-        <div className="mb-6 border-2 border-gray-800 p-2 w-24 h-24 flex items-center justify-center relative">
-          <div className="absolute w-full h-full border-t border-gray-800 transform rotate-45"></div>
-          <div className="absolute w-full h-full border-t border-gray-800 transform -rotate-45"></div>
-        </div>
-
-        {/* Header */}
-        <div className="flex flex-col items-center justify-center mb-10 gap-4">
-          <img src="/logo.png" alt="Kanbanflow" className="h-12 w-auto object-contain" />
-          <h1 className="text-xl font-bold tracking-wide uppercase text-center">
+        {/* Header Section */}
+        <header className="flex flex-col items-center w-full mb-8">
+          <img src="/logo.png" alt="Kanbanflow" className="h-14 w-auto object-contain mb-4" />
+          <h1 className="text-xl sm:text-2xl font-bold text-black tracking-wide uppercase text-center">
             Login
           </h1>
-        </div>
+        </header>
 
         {/* Error Message */}
         {error && (
