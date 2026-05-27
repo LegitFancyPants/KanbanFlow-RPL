@@ -57,14 +57,9 @@ export default function SignUp() {
       <main className="w-full max-w-md bg-white rounded-3xl shadow-sm p-8 sm:p-10 flex flex-col items-center">
         {/* Header Section */}
         <header className="flex flex-col items-center w-full mb-8">
-          {/* Logo Placeholder */}
-          <div className="w-20 h-20 border border-gray-300 flex items-center justify-center mb-6 relative">
-            <svg className="w-full h-full text-gray-300 absolute inset-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M4 4l16 16m0-16L4 20"></path>
-            </svg>
-          </div>
+          <img src="/logo.png" alt="Kanbanflow" className="h-14 w-auto object-contain mb-4" />
           <h1 className="text-xl sm:text-2xl font-bold text-black tracking-wide uppercase text-center">
-            Kanbanflow Sign-Up
+            Sign-Up
           </h1>
         </header>
 

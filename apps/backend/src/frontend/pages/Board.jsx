@@ -495,7 +495,7 @@ export default function Board() {
                 strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Kanbanflow</h1>
+          <img src="/logo.png" alt="KanbanFlow Logo" className="h-8 w-auto object-contain" />
         </div>
 
         <nav className="flex space-x-8 mb-4 md:mb-0 font-semibold text-lg">

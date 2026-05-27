@@ -52,9 +52,12 @@ export default function Login() {
         </div>
 
         {/* Header */}
-        <h1 className="text-2xl font-bold tracking-wide uppercase mb-10 text-center">
-          Kanbanflow Login
-        </h1>
+        <div className="flex flex-col items-center justify-center mb-10 gap-4">
+          <img src="/logo.png" alt="Kanbanflow" className="h-12 w-auto object-contain" />
+          <h1 className="text-xl font-bold tracking-wide uppercase text-center">
+            Login
+          </h1>
+        </div>
 
         {/* Error Message */}
         {error && (
