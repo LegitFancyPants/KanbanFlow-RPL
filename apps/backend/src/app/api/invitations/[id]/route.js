@@ -7,7 +7,8 @@ export async function PUT(req, { params }) {
     const userId = req.headers.get("x-user-id");
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const invitationId = params.id;
+    const { id } = await params;
+    const invitationId = id;
     const body = await req.json();
     const { action } = body; // 'accept' or 'reject'
 
