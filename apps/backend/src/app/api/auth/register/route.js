@@ -1,6 +1,6 @@
 // src/app/api/auth/register/route.js
 import { NextResponse } from "next/server";
-import authService from "@/services/authService";
+import authService from "@/backend/services/authService";
 
 // Validasi format email sederhana
 function isValidEmail(email) {

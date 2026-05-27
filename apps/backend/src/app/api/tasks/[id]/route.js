@@ -1,7 +1,7 @@
 // tasks/[id]/route.js — GET detail | PUT edit | DELETE hapus task
 import { NextResponse } from "next/server";
-import pool from "@/lib/db";
-import { canEdit, canView, isOwner, forbidden } from "@/lib/roleGuard";
+import pool from "@/backend/lib/db";
+import { canEdit, canView, isOwner, forbidden } from "@/backend/lib/roleGuard";
 
 export async function GET(req, { params }) {
   try {

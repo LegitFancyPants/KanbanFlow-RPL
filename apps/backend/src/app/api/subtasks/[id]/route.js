@@ -1,7 +1,7 @@
 // subtasks/[id]/route.js — edit/hapus subtask (owner/member)
 import { NextResponse } from "next/server";
-import pool from "@/lib/db";
-import { canEdit, canView, forbidden } from "@/lib/roleGuard";
+import pool from "@/backend/lib/db";
+import { canEdit, canView, forbidden } from "@/backend/lib/roleGuard";
 
 async function getProjectIdFromSubtask(subtaskId) {
   const result = await pool.query(

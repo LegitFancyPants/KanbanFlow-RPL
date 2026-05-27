@@ -1,7 +1,7 @@
 // subtasks/route.js — buat subtask (owner/member)
 import { NextResponse } from "next/server";
-import pool from "@/lib/db";
-import { canEdit, forbidden } from "@/lib/roleGuard";
+import pool from "@/backend/lib/db";
+import { canEdit, forbidden } from "@/backend/lib/roleGuard";
 
 export async function POST(req) {
   try {
