@@ -234,3 +234,31 @@
     border-right-color: var(--border);
   }
 }
+
+.bg-animated-gradient {
+  background: linear-gradient(-45deg, #2ecfb4, #38bdf8, #34d399, #22d3ee, #2ecfb4);
+  background-size: 400% 400%;
+  animation: gradientBG 12s ease-in-out infinite;
+}
+
+@keyframes gradientBG {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.bg-animated-gradient-dashboard {
+  background: linear-gradient(135deg, #2ecfb4, #4fd1c5, #81e6d9, #2ecfb4);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite reverse;
+}
+
+.bg-static-gradient-board {
+  background: linear-gradient(135deg, #2ecfb4, #4fd1c5, #38b2ac);
+}

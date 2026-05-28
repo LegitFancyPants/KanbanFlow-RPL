@@ -32,7 +32,7 @@ export async function POST(req) {
 
     const result = await pool.query(
       `INSERT INTO subtasks (name, id_task, status)
-       VALUES ($1, $2, 'to do') RETURNING *`,
+       VALUES ($1, $2, 'doing') RETURNING *`,
       [name, Number(id_task)]
     );
 

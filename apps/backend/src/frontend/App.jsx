@@ -7,15 +7,17 @@ import Dashboard from './pages/Dashboard';
 import Projects from './pages/Projects';
 import Board from './pages/Board';
 
+import { getToken } from '@/frontend/utils/auth';
+
 // Sudah login → tidak boleh akses /login atau /signup, redirect ke dashboard
 function PublicRoute({ children }) {
-  const token = localStorage.getItem('token');
+  const token = getToken();
   return token ? <Navigate href="/dashboard" replace /> : children;
 }
 
 // Belum login → tidak boleh akses halaman protected, redirect ke login
 function PrivateRoute({ children }) {
-  const token = localStorage.getItem('token');
+  const token = getToken();
   return token ? children : <Navigate href="/login" replace />;
 }
 

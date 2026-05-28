@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { getToken } from '@/frontend/utils/auth';
 
 export default function NotificationBell() {
   const [invites, setInvites] = useState([]);
@@ -8,7 +9,7 @@ export default function NotificationBell() {
 
   async function fetchInvites() {
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       if (!token) return;
       const res = await fetch('/api/invitations', {
         headers: { Authorization: `Bearer ${token}` }
@@ -30,7 +31,7 @@ export default function NotificationBell() {
 
   async function handleResponse(id, action) {
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       const res = await fetch(`/api/invitations/${id}`, {
         method: 'PUT',
         headers: {
@@ -56,10 +57,10 @@ export default function NotificationBell() {
   }
 
   return (
-    <div className="relative mr-4">
+    <div className="relative">
       <button 
         onClick={() => setOpen(!open)}
-        className="relative p-2 text-gray-500 hover:text-[var(--color-primary)] transition-colors rounded-full hover:bg-gray-100"
+        className="relative p-2 bg-white/80 rounded-full flex items-center justify-center border border-white/50 shadow-sm text-slate-700 hover:bg-white hover:text-[var(--color-primary)] transition-colors backdrop-blur-md"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />

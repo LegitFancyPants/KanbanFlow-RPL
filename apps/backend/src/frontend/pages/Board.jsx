@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import NotificationBell from "@/frontend/components/NotificationBell";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { getToken, getUser, clearAuth } from "@/frontend/utils/auth";
+import SharedNavbar from "@/frontend/components/SharedNavbar";
 const API = "";
 
 function authHeaders() {
-  const token = localStorage.getItem('token');
+  const token = getToken();
   return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 }
 
@@ -39,25 +41,23 @@ function TaskCard({ task, isOverdue, onClick, index, isDragDisabled }) {
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={onClick}
-          className={`border-2 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer ${
-            snapshot.isDragging ? 'opacity-90 z-50 shadow-xl' : ''
+          className={`border rounded-xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer backdrop-blur-md ${
+            snapshot.isDragging ? 'opacity-90 z-50 shadow-2xl scale-105 bg-white/80' : ''
           } ${
             isOverdue
-              ? 'bg-[var(--color-overdue-card)] text-white border-white/20'
-              : 'border-[var(--color-primary)] bg-white text-slate-800'
+              ? 'bg-red-50/80 text-red-600 border-red-200 hover:bg-red-100/90'
+              : 'border-white/60 bg-white/60 hover:bg-white/80 text-slate-800'
           }`}
           style={{ ...provided.draggableProps.style }}
         >
-          <h4 className={`font-bold mb-6 ${isOverdue ? '' : 'text-slate-800'}`}>{task.name}</h4>
-          <div className={`flex justify-between items-center text-xs ${isOverdue ? 'text-white/90' : ''}`}>
-            <span className={isOverdue ? '' : 'text-slate-500'}>Deadline : {formatDeadline(task.deadline)}</span>
+          <h4 className={`font-bold mb-6 text-slate-900`}>{task.name}</h4>
+          <div className={`flex justify-between items-center text-xs text-slate-600`}>
+            <span>Deadline : {formatDeadline(task.deadline)}</span>
             <div className="flex items-center space-x-1">
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold ${
-                isOverdue ? 'bg-white/50 text-red-700' : 'bg-[var(--color-primary)] text-white'
-              }`}>
+              <div className={`w-5 h-5 rounded-full border border-white/50 flex items-center justify-center text-[9px] font-bold shadow-sm bg-[var(--color-primary)] text-white`}>
                 {getInitials(task.username)}
               </div>
-              <span className="font-medium">{task.username}</span>
+              <span className="font-bold">{task.username}</span>
             </div>
           </div>
         </div>
@@ -70,7 +70,7 @@ function TaskCard({ task, isOverdue, onClick, index, isDragDisabled }) {
 export default function Board() {
   const { projectId } = useParams();
   const router = useRouter();
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getUser();
 
   const [project, setProject]   = useState(null);
   const [tasks, setTasks]       = useState([]);
@@ -80,8 +80,7 @@ export default function Board() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   function handleLogout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearAuth();
     router.push('/login');
   }
 
@@ -367,8 +366,8 @@ export default function Board() {
 
   // ── Add subtask ─────────────────────────────────────────────────────────────
   async function handleAddSubtask(e) {
-    e.preventDefault();
-    if (!newSubtask.trim()) return;
+    if (e) e.preventDefault();
+    if (!newSubtask.trim() || subtasks.length >= 5) return;
     setAddingSubtask(true);
     try {
       const res  = await fetch(`/api/subtasks`, {
@@ -452,14 +451,36 @@ export default function Board() {
     // Prevent moving into overdue or moving out of overdue
     if (source.droppableId === 'overdue' || destination.droppableId === 'overdue') return;
 
-    // Optimistic UI update
-    setTasks(prev => prev.map(t => 
-      String(t.id_task) === draggableId 
-        ? { ...t, status: destination.droppableId } 
-        : t
-    ));
+    // Optimistic UI update with proper order preservation
+    setTasks(prev => {
+      const taskIndex = prev.findIndex(t => String(t.id_task) === draggableId);
+      if (taskIndex === -1) return prev;
+      
+      const taskToMove = { ...prev[taskIndex], status: destination.droppableId };
+      const newTasks = prev.filter((_, idx) => idx !== taskIndex);
+      
+      let destCount = 0;
+      let insertIndex = newTasks.length;
+      
+      for (let i = 0; i < newTasks.length; i++) {
+        const s = (newTasks[i].status || '').trim().toLowerCase();
+        if (s === destination.droppableId) {
+          if (destCount === destination.index) {
+            insertIndex = i;
+            break;
+          }
+          destCount++;
+        }
+      }
+      
+      newTasks.splice(insertIndex, 0, taskToMove);
+      return newTasks;
+    });
 
-    // API Call
+    // If dropped in the same column, we only need local reorder. No API call needed.
+    if (source.droppableId === destination.droppableId) return;
+
+    // API Call for status change across columns
     try {
       const res = await fetch(`/api/tasks/${draggableId}`, {
         method: 'PUT',
@@ -467,7 +488,7 @@ export default function Board() {
         body: JSON.stringify({ status: destination.droppableId })
       });
       if (!res.ok) throw new Error('Failed to update status');
-      fetchAll(true);
+      // Intentionally not calling fetchAll(true) here to preserve the user's custom local order
     } catch (e) {
       console.error(e);
       fetchAll(true); // Revert on failure
@@ -482,69 +503,35 @@ export default function Board() {
     <div className="min-h-screen flex items-center justify-center text-red-500">{error}</div>
   );
 
-  // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[var(--color-board-bg)] text-slate-800 font-sans flex flex-col">
+    <div className="min-h-screen bg-static-gradient-board text-slate-800 font-sans flex flex-col relative overflow-hidden">
+      <div className="absolute inset-0 bg-white/20 z-0 pointer-events-none"></div>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <nav className="bg-white shadow-sm px-6 lg:px-12 py-4 flex flex-col md:flex-row items-center justify-between w-full mb-8">
-        <div className="flex items-center space-x-4 mb-4 md:mb-0">
-          <img src="/logo.png" alt="KanbanFlow Logo" className="h-8 w-auto object-contain" />
-        </div>
-
-        <nav className="flex space-x-8 mb-4 md:mb-0 font-semibold text-lg">
-          <Link className="text-slate-600 hover:text-slate-900 transition-colors" href="/dashboard">Beranda</Link>
-          <Link className="text-[var(--color-primary)] hover:text-teal-500 transition-colors" href="/projects">Proyek Tim</Link>
-        </nav>
-
-        <div className="flex items-center gap-2"><NotificationBell /><div className="relative">
-          <div className="flex items-center space-x-3 cursor-pointer hover:bg-slate-50 px-3 py-2 rounded-full transition-colors"
-            onClick={() => setDropdownOpen(o => !o)}
-          >
-            <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] flex items-center justify-center text-white text-xs font-bold">
-              {getInitials(user.username || '')}
-            </div>
-            <span className="font-semibold text-slate-700 hidden sm:block">{user.username || 'User'}</span>
-            <svg className="h-4 w-4 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
-              <path clipRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" fillRule="evenodd" />
-            </svg>
-          </div>
-          {dropdownOpen && (
-            <div className="absolute right-0 mt-1 w-40 bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden z-50">
-              <button
-                onClick={handleLogout}
-                className="w-full text-left px-4 py-3 text-sm text-red-500 font-semibold hover:bg-red-50 transition-colors"
-              >
-                Keluar
-              </button>
-            </div>
-          )}
-        </div>
-        </div>
-      </nav>
+      <SharedNavbar />
 
       {/* ── Main ───────────────────────────────────────────────────────────── */}
-      <main className="max-w-[1600px] mx-auto w-full px-4 md:px-8 flex-1 flex flex-col">
+      <main className="relative z-10 max-w-[1600px] mx-auto w-full px-4 md:px-8 pt-10 flex-1 flex flex-col">
 
         {/* Project Header */}
-        <section className="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-end border-b border-slate-300 pb-4">
+        <section className="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-end border-b border-slate-200 pb-4">
           <div className="mb-4 lg:mb-0">
-            <h2 className="text-3xl font-extrabold mb-1">{project?.name}</h2>
-            <p className="text-slate-600 text-sm">{project?.description || ''}</p>
+            <h2 className="text-3xl font-black mb-1 text-slate-900 tracking-tight">{project?.name}</h2>
+            <p className="text-slate-700 text-sm font-medium">{project?.description || ''}</p>
           </div>
 
           <div className="flex items-center space-x-4">
             {/* Anggota Tim */}
             <button
               onClick={() => setIsTeamModalOpen(true)}
-              className="font-bold text-slate-700 text-sm hover:text-[var(--color-primary)] transition-colors flex items-center gap-2"
+              className="font-bold text-slate-700 text-sm hover:text-slate-900 transition-colors flex items-center gap-2"
             >
               Anggota Tim
               <div className="flex -space-x-2">
                 {members.slice(0, 4).map(m => (
                   <div key={m.id_member} title={m.username}
-                    className={`w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold
-                      ${m.status === 'owner' ? 'bg-[var(--color-primary)] text-white' : 'bg-slate-200 text-slate-600'}`}>
+                    className={`w-6 h-6 rounded-full border border-white/60 flex items-center justify-center text-[10px] font-bold shadow-sm
+                      ${m.status === 'owner' ? 'bg-[var(--color-primary)] text-white' : 'bg-white/80 text-slate-800'}`}>
                     {getInitials(m.username)}
                   </div>
                 ))}
@@ -552,24 +539,22 @@ export default function Board() {
             </button>
 
             {/* Hapus Proyek */}
-            {isOwner && (
-              <button
-                onClick={() => setIsDeleteProjectOpen(true)}
-                className="bg-[var(--color-primary)] text-white font-semibold py-2 px-4 rounded-full flex items-center space-x-1 hover:bg-teal-500 transition-colors shadow-sm"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-                </svg>
-                <span>Hapus</span>
-              </button>
-            )}
+            <button
+              onClick={() => setIsDeleteProjectOpen(true)}
+              className="bg-red-50 hover:bg-red-100 backdrop-blur-sm border border-red-200 text-red-600 font-bold py-2 px-4 rounded-full flex items-center space-x-1 transition-colors shadow-sm"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+              </svg>
+              <span>Hapus</span>
+            </button>
 
-            {/* ── TAMBAH KARTU — selalu tampil jika canEdit ── */}
+            {/* ── TAMBAH KARTU ── */}
             {canEdit && (
               <button
                 onClick={openAddModal}
-                className="bg-[var(--color-primary)] text-white font-semibold py-2 px-5 rounded-full flex items-center space-x-1 hover:bg-teal-500 transition-colors shadow-sm"
+                className="bg-[var(--color-primary)] hover:bg-teal-500 backdrop-blur-sm border border-teal-400 text-white font-bold py-2 px-5 rounded-full flex items-center space-x-1 transition-colors shadow-md"
               >
                 <span className="text-xl leading-none mr-1">+</span>
                 <span>Tambah Kartu</span>
@@ -585,9 +570,9 @@ export default function Board() {
             const isOver = status === 'overdue';
             return (
               <div key={status}
-                className={`${isOver ? 'bg-[var(--color-overdue-container)]' : 'bg-white'} rounded-[32px] p-6 flex-1 shadow-sm border border-slate-100 flex flex-col h-full min-w-0`}>
-                <h3 className={`text-center font-extrabold text-lg tracking-wide border-b-2 pb-2 mb-6 uppercase
-                  ${isOver ? 'border-red-800/20 text-red-800' : 'border-slate-800'}`}>
+                className={`${isOver ? 'bg-red-50/80 border-red-200' : 'bg-white/70 border-white/60'} rounded-[32px] p-6 flex-1 shadow-md border flex flex-col h-full min-w-0`}>
+                <h3 className={`text-center font-black text-lg tracking-wide border-b pb-2 mb-6 uppercase
+                  ${isOver ? 'border-red-200 text-red-500' : 'border-slate-300 text-slate-800'}`}>
                   {STATUS_LABELS[status]}
                 </h3>
                 <Droppable droppableId={status}>
@@ -595,10 +580,10 @@ export default function Board() {
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`space-y-4 flex-1 rounded-xl ${snapshot.isDraggingOver ? 'ring-2 ring-[var(--color-primary)]/40 bg-slate-50/50' : ''}`}
+                      className={`flex flex-col gap-4 flex-1 rounded-xl transition-colors ${snapshot.isDraggingOver ? 'ring-2 ring-white/60 bg-white/40' : ''}`}
                     >
                       {grouped[status].length === 0 ? (
-                        <p className="text-center text-sm text-slate-400 mt-8">Tidak ada tugas</p>
+                        <p className="text-center text-sm text-slate-500 mt-8 font-bold">Tidak ada tugas</p>
                       ) : (
                         grouped[status].map((task, index) => (
                           <TaskCard 
@@ -628,24 +613,24 @@ export default function Board() {
            MODAL: Tambah Kartu Tugas
          ════════════════════════════════════════════════════ */}
       {isModalOpen && (
-        <div aria-modal="true" className="fixed inset-0 bg-slate-400/50 backdrop-blur-sm z-50 flex justify-center items-center" role="dialog">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-2xl p-8 relative m-4 max-h-[90vh] overflow-y-auto">
+        <div aria-modal="true" className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex justify-center items-center p-4" role="dialog">
+          <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-[2rem] shadow-2xl w-full max-w-2xl p-8 relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-6 right-6 text-gray-500 hover:text-gray-800 transition-colors"
+              className="absolute top-6 right-6 text-slate-400 hover:text-slate-700 transition-colors"
             >
               <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
 
-            <div className="mb-8 border-b border-[var(--color-outline-variant)] pb-6">
-              <h2 className="text-2xl font-bold mb-2">Tambah Kartu Tugas</h2>
-              <p className="text-sm text-gray-600">Tambah tugas baru dan kelola kartu tugas</p>
+            <div className="mb-8 border-b border-slate-200 pb-6">
+              <h2 className="text-2xl font-black mb-2 text-slate-800">Tambah Kartu Tugas</h2>
+              <p className="text-sm text-slate-600 font-semibold">Tambah tugas baru dan kelola kartu tugas</p>
             </div>
 
             {addError && (
-              <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">{addError}</div>
+              <div className="mb-4 px-4 py-3 rounded-xl bg-red-100/90 backdrop-blur-sm border border-red-200 text-red-600 font-medium text-sm text-center">{addError}</div>
             )}
 
             <form onSubmit={handleAddTask}>
@@ -653,9 +638,9 @@ export default function Board() {
                 {/* Kiri */}
                 <div className="flex flex-col gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Nama Tugas</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Nama Tugas</label>
                     <input
-                      className="w-full px-4 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow text-sm placeholder-gray-400"
+                      className="w-full px-4 py-3 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 placeholder-slate-400 transition-colors duration-200 text-sm font-medium"
                       placeholder="Nama tugas..."
                       value={addForm.name}
                       onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
@@ -663,9 +648,9 @@ export default function Board() {
                     />
                   </div>
                   <div className="flex-1 flex flex-col">
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Deskripsi</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Deskripsi</label>
                     <textarea
-                      className="w-full px-4 py-3 rounded-3xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow text-sm placeholder-gray-400 resize-none flex-1 min-h-[120px]"
+                      className="w-full px-4 py-3 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 placeholder-slate-400 transition-colors duration-200 text-sm font-medium resize-none flex-1 min-h-[120px]"
                       placeholder="Deskripsi tugas..."
                       value={addForm.description}
                       onChange={e => setAddForm(f => ({ ...f, description: e.target.value }))}
@@ -676,54 +661,53 @@ export default function Board() {
                 {/* Kanan */}
                 <div className="flex flex-col gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Ditugaskan Ke</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Ditugaskan Ke</label>
                     <div className="relative">
                       <select
-                        className="w-full px-4 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow text-sm appearance-none bg-white"
+                        className="w-full px-4 py-3 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 transition-colors duration-200 text-sm appearance-none font-medium"
                         value={addForm.id_user}
                         onChange={e => setAddForm(f => ({ ...f, id_user: e.target.value }))}
                         required
                       >
-                        <option value="" disabled>Pilih User</option>
-                        {/* Jika members tersedia dari API, tampilkan; jika tidak, tampilkan user sendiri */}
+                        <option value="" disabled className="text-gray-900">Pilih User</option>
                         {members.length > 0
                           ? members.map(m => (
-                              <option key={m.id_user} value={m.id_user}>{m.username}</option>
+                              <option key={m.id_user} value={m.id_user} className="text-gray-900">{m.username}</option>
                             ))
                           : (
-                              <option value={user.id_user}>{user.username || 'Saya'}</option>
+                              <option value={user.id_user} className="text-gray-900">{user.username || 'Saya'}</option>
                             )
                         }
                       </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
                         <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Batas Waktu</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Batas Waktu</label>
                     <input
                       type="date"
-                      className="w-full px-4 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow text-sm"
+                      className="w-full px-4 py-3 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 transition-colors duration-200 text-sm font-medium"
                       value={addForm.deadline}
                       onChange={e => setAddForm(f => ({ ...f, deadline: e.target.value }))}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Status Awal</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Status Awal</label>
                     <div className="relative">
                       <select
-                        className="w-full px-4 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow text-sm appearance-none bg-white"
+                        className="w-full px-4 py-3 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 transition-colors duration-200 text-sm appearance-none font-medium"
                         value={addForm.status}
                         onChange={e => setAddForm(f => ({ ...f, status: e.target.value }))}
                       >
-                        <option value="to do">TO - DO</option>
-                        <option value="doing">DOING</option>
-                        <option value="done">DONE</option>
+                        <option value="to do" className="text-gray-900">TO - DO</option>
+                        <option value="doing" className="text-gray-900">DOING</option>
+                        <option value="done" className="text-gray-900">DONE</option>
                       </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
                         <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
                       </div>
                     </div>
@@ -735,14 +719,14 @@ export default function Board() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="w-full sm:w-40 py-3 px-6 rounded-full border border-gray-300 text-gray-800 font-semibold hover:bg-gray-50 transition-colors"
+                  className="w-full sm:w-40 py-3.5 px-6 rounded-xl bg-white/60 hover:bg-white/80 border border-slate-300 text-slate-700 font-bold transition-colors shadow-sm"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={addLoading}
-                  className="w-full sm:w-40 py-3 px-6 rounded-full bg-[var(--color-primary)] text-white font-semibold hover:bg-teal-500 transition-colors disabled:opacity-60"
+                  className="w-full sm:w-40 py-3.5 px-6 rounded-xl bg-[var(--color-primary)] hover:bg-teal-500 text-white font-bold transition-colors shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {addLoading ? 'Menyimpan...' : 'Simpan Kartu'}
                 </button>
@@ -757,14 +741,14 @@ export default function Board() {
            MODAL: Anggota Tim
          ════════════════════════════════════════════════════ */}
       {isTeamModalOpen && (
-        <div aria-modal="true" className="fixed inset-0 bg-slate-400/50 backdrop-blur-sm z-50 flex justify-center items-center" role="dialog">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-[600px] flex flex-col overflow-hidden relative m-4 max-h-[90vh]">
-            <div className="flex items-start justify-between p-6 border-b border-gray-200">
+        <div aria-modal="true" className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex justify-center items-center p-4" role="dialog">
+          <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-[2rem] shadow-2xl w-full max-w-[600px] flex flex-col overflow-hidden relative max-h-[90vh]">
+            <div className="flex items-start justify-between p-6 border-b border-slate-200">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-1">Anggota Tim</h2>
-                <p className="text-sm text-gray-600">Daftar anggota tim yang bergabung ke dalam proyek</p>
+                <h2 className="text-2xl font-black text-slate-800 mb-1">Anggota Tim</h2>
+                <p className="text-sm text-slate-600 font-semibold">Daftar anggota tim yang bergabung ke dalam proyek</p>
               </div>
-              <button onClick={() => setIsTeamModalOpen(false)} className="text-gray-500 hover:text-gray-800 hover:bg-gray-100 p-2 rounded-full transition-colors">
+              <button onClick={() => setIsTeamModalOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors">
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -773,23 +757,23 @@ export default function Board() {
 
             <div className="p-6 flex-1 overflow-y-auto">
               {members.length === 0 ? (
-                <p className="text-center text-sm text-slate-400 py-8">Belum ada data anggota</p>
+                <p className="text-center text-sm text-slate-500 py-8 font-bold">Belum ada data anggota</p>
               ) : (
                 <ul className="flex flex-col gap-4">
                   {members.map(m => (
-                    <li key={m.id_member} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                    <li key={m.id_member} className="flex items-center justify-between py-2 border-b border-slate-200 last:border-0">
                       <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold
-                          ${m.status === 'owner' ? 'bg-[var(--color-primary)] text-white' : 'bg-gray-100 text-gray-600'}`}>
+                        <div className={`w-10 h-10 rounded-full border border-white/60 flex items-center justify-center text-sm font-bold shadow-sm
+                          ${m.status === 'owner' ? 'bg-[var(--color-primary)] text-white' : 'bg-white/80 text-slate-800'}`}>
                           {getInitials(m.username)}
                         </div>
                         <div>
-                          <h3 className="text-sm font-semibold text-gray-900">{m.username}</h3>
-                          <p className="text-sm text-gray-500">{m.email}</p>
+                          <h3 className="text-sm font-bold text-slate-800">{m.username}</h3>
+                          <p className="text-sm text-slate-600 font-medium">{m.email}</p>
                         </div>
                       </div>
-                      <span className={`px-3 py-1 text-xs font-semibold rounded-full
-                        ${m.status === 'owner' ? 'bg-[var(--color-primary)] text-white' : 'bg-gray-100 text-gray-600'}`}>
+                      <span className={`px-3 py-1 text-xs font-bold rounded-full border shadow-sm
+                        ${m.status === 'owner' ? 'bg-[var(--color-primary)] border-teal-400 text-white' : 'bg-white/80 border-slate-300 text-slate-700'}`}>
                         {m.status === 'owner' ? 'Pemilik' : m.status === 'member' ? 'Anggota' : 'Penonton'}
                       </span>
                     </li>
@@ -799,12 +783,12 @@ export default function Board() {
             </div>
 
             {isOwner && (
-              <div className="p-6 bg-white border-t border-gray-200">
-                <label className="block text-sm font-semibold text-gray-900 mb-3">Undang Anggota Baru :</label>
-                {inviteError && <p className="text-red-500 text-sm mb-2">{inviteError}</p>}
+              <div className="p-6 bg-white/60 border-t border-slate-200">
+                <label className="block text-sm font-bold text-slate-700 mb-3 ml-1">Undang Anggota Baru :</label>
+                {inviteError && <p className="text-red-500 text-sm mb-2 font-bold">{inviteError}</p>}
                 <form onSubmit={handleInvite} className="flex gap-4">
                   <input
-                    className="flex-1 bg-white border border-gray-300 rounded-full px-4 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-shadow"
+                    className="flex-1 px-4 py-2 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 placeholder-slate-400 transition-colors duration-200 text-sm font-medium"
                     placeholder="Masukkan Email"
                     type="email"
                     value={inviteEmail}
@@ -814,15 +798,15 @@ export default function Board() {
                   <select
                     value={inviteRole}
                     onChange={e => setInviteRole(e.target.value)}
-                    className="bg-white border border-gray-300 rounded-full px-4 py-2 text-sm text-gray-900 focus:outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
+                    className="px-4 py-2 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 transition-colors duration-200 text-sm appearance-none font-medium"
                   >
-                    <option value="member">Anggota</option>
-                    <option value="viewer">Penonton</option>
+                    <option value="member" className="text-gray-900">Anggota</option>
+                    <option value="viewer" className="text-gray-900">Penonton</option>
                   </select>
                   <button
                     type="submit"
                     disabled={inviteLoading}
-                    className="bg-[var(--color-primary)] hover:bg-teal-500 text-white font-semibold text-sm px-6 py-2 rounded-full transition-colors whitespace-nowrap shadow-sm disabled:opacity-60"
+                    className="bg-[var(--color-primary)] hover:bg-teal-500 text-white font-bold text-sm px-6 py-2 rounded-xl transition-colors shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {inviteLoading ? '...' : 'Undang'}
                   </button>
@@ -838,15 +822,15 @@ export default function Board() {
            MODAL: Kelola Kartu Tugas
          ════════════════════════════════════════════════════ */}
       {isManageTaskModalOpen && selectedTask && (
-        <div aria-modal="true" className="fixed inset-0 bg-slate-400/50 backdrop-blur-sm z-50 flex justify-center items-center" role="dialog">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-2xl flex flex-col overflow-hidden relative m-4 max-h-[90vh]">
+        <div aria-modal="true" className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex justify-center items-center p-4" role="dialog">
+          <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-[2rem] shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden relative max-h-[90vh]">
 
-            <div className="px-8 pt-8 pb-6 border-b border-gray-200 relative">
-              <h2 className="text-[28px] leading-tight font-bold text-gray-900 mb-1">Kartu Tugas</h2>
-              <p className="text-base text-gray-600">Kelola Kartu Tugas Anda.</p>
+            <div className="px-8 pt-8 pb-6 border-b border-slate-200 relative">
+              <h2 className="text-[28px] leading-tight font-black text-slate-800 mb-1">Kartu Tugas</h2>
+              <p className="text-sm text-slate-600 font-semibold">Kelola Kartu Tugas Anda.</p>
               <button
                 onClick={() => setIsManageTaskModalOpen(false)}
-                className="absolute top-6 right-6 p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+                className="absolute top-6 right-6 text-slate-400 hover:text-slate-700 transition-colors"
               >
                 <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24">
                   <line x1="18" x2="6" y1="6" y2="18" /><line x1="6" x2="18" y1="6" y2="18" />
@@ -856,17 +840,17 @@ export default function Board() {
 
             <div className="p-8 overflow-y-auto flex-1">
               {manageError && (
-                <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">{manageError}</div>
+                <div className="mb-4 px-4 py-3 rounded-xl bg-red-100/90 backdrop-blur-sm border border-red-200 text-red-600 font-medium text-sm text-center">{manageError}</div>
               )}
 
               <form id="manage-task-form" onSubmit={handleSaveTask}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                   <div className="flex flex-col gap-6">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">Nama Tugas</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Nama Tugas</label>
                       <input
-                        className={`w-full px-5 py-3 rounded-full border focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow text-sm bg-transparent
-                          ${editMode ? 'border-gray-400' : 'border-gray-200 bg-gray-50'}`}
+                        className={`w-full px-4 py-3 rounded-xl backdrop-blur-sm border focus:outline-none transition-colors text-sm font-medium
+                          ${editMode ? 'bg-white/60 border-slate-300 focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] focus:bg-white/80 text-slate-800 placeholder-slate-400' : 'bg-transparent border-transparent text-slate-900 cursor-default'}`}
                         value={manageForm.name || ''}
                         onChange={e => setManageForm(f => ({ ...f, name: e.target.value }))}
                         readOnly={!editMode}
@@ -874,10 +858,10 @@ export default function Board() {
                       />
                     </div>
                     <div className="flex-1 flex flex-col">
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">Deskripsi</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Deskripsi</label>
                       <textarea
-                        className={`w-full px-5 py-3 rounded-3xl border focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow text-sm resize-y flex-1 min-h-[100px] bg-transparent
-                          ${editMode ? 'border-gray-400' : 'border-gray-200 bg-gray-50'}`}
+                        className={`w-full px-4 py-3 rounded-xl backdrop-blur-sm border focus:outline-none transition-colors text-sm resize-y flex-1 min-h-[100px] font-medium
+                          ${editMode ? 'bg-white/60 border-slate-300 focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] focus:bg-white/80 text-slate-800 placeholder-slate-400' : 'bg-transparent border-transparent text-slate-700 cursor-default'}`}
                         value={manageForm.description || ''}
                         onChange={e => setManageForm(f => ({ ...f, description: e.target.value }))}
                         readOnly={!editMode}
@@ -887,34 +871,36 @@ export default function Board() {
 
                   <div className="flex flex-col gap-6">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">Ditugaskan Ke</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Ditugaskan Ke</label>
                       <div className="relative">
                         <select
-                          className={`w-full px-5 py-3 rounded-full border focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow text-sm bg-transparent appearance-none
-                            ${editMode ? 'border-gray-400' : 'border-gray-200 bg-gray-50'}`}
+                          className={`w-full px-4 py-3 rounded-xl backdrop-blur-sm border focus:outline-none transition-colors text-sm appearance-none font-medium
+                            ${editMode ? 'bg-white/60 border-slate-300 focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] focus:bg-white/80 text-slate-800' : 'bg-transparent border-transparent text-slate-900 cursor-default'}`}
                           value={manageForm.id_user || ''}
                           onChange={e => setManageForm(f => ({ ...f, id_user: e.target.value }))}
                           disabled={!editMode}
                         >
                           {members.length > 0
                             ? members.map(m => (
-                                <option key={m.id_user} value={m.id_user}>{m.username}</option>
+                                <option key={m.id_user} value={m.id_user} className="text-gray-900">{m.username}</option>
                               ))
-                            : <option value={selectedTask.id_user}>{selectedTask.username}</option>
+                            : <option value={selectedTask.id_user} className="text-gray-900">{selectedTask.username}</option>
                           }
                         </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                          <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
-                        </div>
+                        {editMode && (
+                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                            <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">Deadline</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Deadline</label>
                       <input
                         type="date"
-                        className={`w-full px-5 py-3 rounded-full border focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow text-sm bg-transparent
-                          ${editMode ? 'border-gray-400' : 'border-gray-200 bg-gray-50'}`}
+                        className={`w-full px-4 py-3 rounded-xl backdrop-blur-sm border focus:outline-none transition-colors text-sm font-medium
+                          ${editMode ? 'bg-white/60 border-slate-300 focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] focus:bg-white/80 text-slate-800' : 'bg-transparent border-transparent text-slate-900 cursor-default'}`}
                         value={manageForm.deadline || ''}
                         onChange={e => setManageForm(f => ({ ...f, deadline: e.target.value }))}
                         readOnly={!editMode}
@@ -922,23 +908,25 @@ export default function Board() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">Status Awal</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Status Awal</label>
                       <div className="relative">
                         <select
-                          className={`w-full px-5 py-3 rounded-full border focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-shadow text-sm bg-transparent appearance-none
-                            ${editMode ? 'border-gray-400' : 'border-gray-200 bg-gray-50'}`}
+                          className={`w-full px-4 py-3 rounded-xl backdrop-blur-sm border focus:outline-none transition-colors text-sm appearance-none font-medium
+                            ${editMode ? 'bg-white/60 border-slate-300 focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] focus:bg-white/80 text-slate-800' : 'bg-transparent border-transparent text-slate-900 cursor-default'}`}
                           value={manageForm.status || 'to do'}
                           onChange={e => setManageForm(f => ({ ...f, status: e.target.value }))}
                           disabled={!editMode}
                         >
-                          <option value="to do">To Do</option>
-                          <option value="doing">Doing</option>
-                          <option value="done">Done</option>
-                          <option value="overdue">Overdue</option>
+                          <option value="to do" className="text-gray-900">To Do</option>
+                          <option value="doing" className="text-gray-900">Doing</option>
+                          <option value="done" className="text-gray-900">Done</option>
+                          <option value="overdue" className="text-gray-900">Overdue</option>
                         </select>
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                          <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
-                        </div>
+                        {editMode && (
+                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                            <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -946,61 +934,81 @@ export default function Board() {
 
                 {/* Subtask */}
                 {canEdit && (
-                  <div className="mt-6 border-t border-gray-100 pt-6">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Subtask</h3>
-                    <ul className="space-y-2 mb-3">
-                      {subtasks.map(sub => (
-                        <li key={sub.id_subtask} className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => toggleSubtask(sub)}
-                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors
-                              ${sub.status === 'done' ? 'bg-[var(--color-primary)] border-[var(--color-primary)]' : 'border-gray-300'}`}
-                          >
-                            {sub.status === 'done' && (
-                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                                <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                  <div className="mt-6 border-t border-slate-200 pt-6">
+                    <h3 className="text-sm font-bold text-slate-700 mb-3">
+                      Subtask <span className="text-slate-400 font-normal ml-2">({subtasks.length}/5)</span>
+                    </h3>
+                    
+                    {subtasks.length > 0 && (
+                      <ul className="space-y-2 mb-4">
+                        {subtasks.map(sub => (
+                          <li key={sub.id_subtask} className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => toggleSubtask(sub)}
+                              className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors shadow-sm
+                                ${sub.status === 'done' ? 'bg-[var(--color-primary)] border-teal-500' : 'border-slate-300 bg-white'}`}
+                            >
+                              {sub.status === 'done' && (
+                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                                  <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              )}
+                            </button>
+                            <span className={`flex-1 text-sm font-medium ${sub.status === 'done' ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                              {sub.name}
+                            </span>
+                            <button type="button" onClick={() => deleteSubtask(sub.id_subtask)} className="text-slate-400 hover:text-red-500 transition-colors">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
                               </svg>
-                            )}
-                          </button>
-                          <span className={`flex-1 text-sm ${sub.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                            {sub.name}
-                          </span>
-                          <button type="button" onClick={() => deleteSubtask(sub.id_subtask)} className="text-gray-400 hover:text-red-500 transition-colors">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                              <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                    <form onSubmit={handleAddSubtask} className="flex gap-2">
-                      <input
-                        className="flex-1 px-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] text-sm"
-                        placeholder="Tambah subtask..."
-                        value={newSubtask}
-                        onChange={e => setNewSubtask(e.target.value)}
-                        disabled={addingSubtask}
-                      />
-                      <button
-                        type="submit"
-                        disabled={addingSubtask || !newSubtask.trim()}
-                        className="px-4 py-2 rounded-full bg-[var(--color-primary)] text-white text-sm font-semibold hover:bg-teal-500 disabled:opacity-50 transition-colors"
-                      >
-                        +
-                      </button>
-                    </form>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    
+                    {subtasks.length < 5 ? (
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          type="text"
+                          className="flex-1 px-4 py-2 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 placeholder-slate-400 transition-colors duration-200 text-sm font-medium"
+                          placeholder="Tambah subtask..."
+                          value={newSubtask}
+                          onChange={e => setNewSubtask(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddSubtask(e);
+                            }
+                          }}
+                          disabled={addingSubtask}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddSubtask}
+                          disabled={addingSubtask || !newSubtask.trim()}
+                          className="px-4 py-2 rounded-xl bg-[var(--color-primary)] hover:bg-teal-500 border border-transparent text-white text-sm font-bold shadow-sm disabled:opacity-50 transition-colors"
+                        >
+                          +
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-amber-600 font-medium bg-amber-50 px-3 py-2 rounded-lg mt-2 border border-amber-200 text-center shadow-sm">
+                        Batas maksimal 5 subtask telah tercapai.
+                      </p>
+                    )}
                   </div>
                 )}
               </form>
             </div>
 
-            <div className="px-8 py-6 border-t border-gray-200 flex justify-between items-center">
+            <div className="px-8 py-6 border-t border-slate-200 flex justify-between items-center">
               {canEdit ? (
                 <button
                   type="button"
                   onClick={handleDeleteTask}
-                  className="text-red-500 font-semibold hover:text-red-700 transition-colors px-2 py-2 text-sm flex items-center gap-1"
+                  className="text-red-500 font-bold hover:text-red-600 transition-colors px-2 py-2 text-sm flex items-center gap-1"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeLinecap="round" strokeLinejoin="round" />
@@ -1014,7 +1022,7 @@ export default function Board() {
                   <button
                     type="button"
                     onClick={() => setEditMode(true)}
-                    className="text-[var(--color-primary)] font-semibold hover:text-teal-600 transition-colors px-2 py-2"
+                    className="text-slate-600 font-bold hover:text-slate-800 transition-colors px-2 py-2"
                   >
                     Edit
                   </button>
@@ -1024,7 +1032,7 @@ export default function Board() {
                     <button
                       type="button"
                       onClick={() => setEditMode(false)}
-                      className="text-gray-500 font-semibold hover:text-gray-700 transition-colors px-2 py-2"
+                      className="text-slate-500 font-bold hover:text-slate-700 transition-colors px-2 py-2"
                     >
                       Batal
                     </button>
@@ -1032,7 +1040,7 @@ export default function Board() {
                       type="submit"
                       form="manage-task-form"
                       disabled={savingTask}
-                      className="bg-[var(--color-primary)] hover:bg-teal-500 text-white font-semibold py-3 px-8 rounded-full transition-colors shadow-sm disabled:opacity-60"
+                      className="bg-[var(--color-primary)] hover:bg-teal-500 text-white font-bold py-2.5 px-8 rounded-xl transition-colors shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {savingTask ? 'Menyimpan...' : 'Simpan'}
                     </button>
@@ -1044,32 +1052,31 @@ export default function Board() {
         </div>
       )}
 
-
       {/* ════════════════════════════════════════════════════
            MODAL: Konfirmasi Hapus Proyek
          ════════════════════════════════════════════════════ */}
       {isDeleteProjectOpen && (
-        <div aria-modal="true" className="fixed inset-0 bg-slate-400/50 backdrop-blur-sm z-50 flex justify-center items-center" role="dialog">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md p-8 m-4 text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div aria-modal="true" className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex justify-center items-center p-4" role="dialog">
+          <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-[2rem] shadow-2xl w-full max-w-md p-8 text-center relative">
+            <div className="w-16 h-16 bg-red-100 border border-red-200 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
               <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold mb-2">Hapus Proyek?</h2>
-            <p className="text-gray-600 text-sm mb-8">
+            <h2 className="text-2xl font-black mb-2 text-slate-800">Hapus Proyek?</h2>
+            <p className="text-slate-600 text-sm mb-8 font-semibold">
               Tindakan ini akan menghapus proyek "<strong>{project?.name}</strong>" beserta semua tugas dan subtask di dalamnya secara permanen.
             </p>
             <div className="flex gap-4 justify-center">
               <button
                 onClick={() => setIsDeleteProjectOpen(false)}
-                className="w-36 py-3 px-6 rounded-full border border-gray-300 text-gray-800 font-semibold hover:bg-gray-50 transition-colors"
+                className="w-36 py-3.5 px-6 rounded-xl bg-white/60 hover:bg-white/80 border border-slate-300 text-slate-700 font-bold transition-colors shadow-sm"
               >
                 Batal
               </button>
               <button
                 onClick={handleDeleteProject}
-                className="w-36 py-3 px-6 rounded-full bg-red-500 text-white font-semibold hover:bg-red-600 transition-colors"
+                className="w-36 py-3.5 px-6 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold transition-colors shadow-md border border-transparent"
               >
                 Hapus
               </button>
