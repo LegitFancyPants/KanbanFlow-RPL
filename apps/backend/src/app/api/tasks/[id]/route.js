@@ -47,9 +47,29 @@ export async function PUT(req, { params }) {
       return NextResponse.json({ error: "Task tidak ditemukan" }, { status: 404 });
     }
 
-    // Hanya owner/member yang boleh edit
-    if (!(await canEdit(userId, taskRes.rows[0].id_project))) {
-      return forbidden("Hanya Owner atau Member yang dapat mengubah tugas");
+    // Evaluasi peran
+    const roleRes = await pool.query(`SELECT status FROM members WHERE id_user = $1 AND id_project = $2`, [userId, taskRes.rows[0].id_project]);
+    const role = roleRes.rows[0]?.status;
+
+    if (!role) {
+      return forbidden("Anda tidak memiliki akses ke proyek ini");
+    }
+
+    const isStatusOnly = Object.keys(body).length === 1 && body.hasOwnProperty("status");
+    const isAssignedToUser = String(taskRes.rows[0].id_user) === String(userId);
+
+    if (role === "owner") {
+      // Owner can do anything
+    } else if (role === "member") {
+      // Member can ONLY update status IF assigned to them
+      if (!isStatusOnly) {
+        return forbidden("Hanya Owner yang dapat mengubah detail tugas");
+      }
+      if (!isAssignedToUser) {
+        return forbidden("Anda hanya dapat memindahkan tugas yang ditugaskan kepada Anda");
+      }
+    } else {
+      return forbidden("Viewer tidak dapat mengubah tugas");
     }
 
     let finalIdUser = taskRes.rows[0].id_user;
@@ -89,9 +109,9 @@ export async function DELETE(req, { params }) {
       return NextResponse.json({ error: "Task tidak ditemukan" }, { status: 404 });
     }
 
-    // Hanya owner/member yang boleh hapus
+    // Hanya owner yang boleh hapus
     if (!(await canEdit(userId, taskRes.rows[0].id_project))) {
-      return forbidden("Hanya Owner atau Member yang dapat menghapus tugas");
+      return forbidden("Hanya Owner yang dapat menghapus tugas");
     }
 
     await pool.query("DELETE FROM tasks WHERE id_task = $1", [Number(id)]);

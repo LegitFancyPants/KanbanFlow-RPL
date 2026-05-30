@@ -23,11 +23,11 @@ export async function isOwner(id_user, id_project) {
 }
 
 /**
- * Cek apakah user bisa mengedit (owner atau member).
+ * Cek apakah user bisa mengedit (Hanya owner).
  */
 export async function canEdit(id_user, id_project) {
   const role = await getUserRole(id_user, id_project);
-  return role === "owner" || role === "member";
+  return role === "owner";
 }
 
 /**

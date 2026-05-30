@@ -44,9 +44,9 @@ export async function POST(req) {
       );
     }
 
-    // Hanya owner dan member yang boleh membuat task
+    // Hanya owner yang boleh membuat task
     if (!(await canEdit(userId, id_project))) {
-      return forbidden("Hanya Owner atau Member yang dapat membuat tugas");
+      return forbidden("Hanya Owner yang dapat membuat tugas");
     }
 
     const result = await pool.query(

@@ -180,12 +180,19 @@ export default function Board() {
   // FIX: Jika members kosong (endpoint belum ada / gagal), izinkan edit
   // agar fitur tambah kartu tetap bisa dipakai
   const myMembership = members.find(m => String(m.id_user) === String(user.id_user));
-  const canEdit = members.length === 0
-    ? true   // fallback: endpoint members belum tersedia → izinkan semua
-    : (myMembership?.status === 'owner' || myMembership?.status === 'member');
   const isOwner = members.length === 0
     ? true
     : myMembership?.status === 'owner';
+  const canEdit = members.length === 0
+    ? true   // fallback: endpoint members belum tersedia → izinkan semua
+    : isOwner;
+
+  const canDragTask = (task) => {
+    if (members.length === 0) return true;
+    if (isOwner) return true;
+    if (myMembership?.status === 'member' && String(task.id_user) === String(user.id_user)) return true;
+    return false;
+  };
 
   // ── Add task ────────────────────────────────────────────────────────────────
   async function handleAddTask(e) {
@@ -247,6 +254,10 @@ export default function Board() {
 
   // ── Open modal tambah kartu ─────────────────────────────────────────────────
   function openAddModal() {
+    if (!canEdit) {
+      alert("Hanya Owner yang dapat menambahkan tugas baru");
+      return;
+    }
     setAddError('');
     // Pre-select user yang sedang login jika ada di daftar members
     const selfMember = members.find(m => String(m.id_user) === String(user.id_user));
@@ -593,15 +604,16 @@ export default function Board() {
             </button>
 
             {/* ── TAMBAH KARTU ── */}
-            {canEdit && (
-              <button
-                onClick={openAddModal}
-                className="bg-[#2ecfb4] hover:bg-[#25b59d] border border-transparent text-white font-bold py-2 px-6 rounded-full flex items-center gap-2 transition-all shadow-[0_4px_14px_rgba(46,207,180,0.3)] hover:shadow-[0_6px_20px_rgba(46,207,180,0.4)] transform hover:-translate-y-0.5"
-              >
-                <span className="text-lg leading-none font-medium">+</span>
-                <span className="text-sm">Tambah Kartu</span>
-              </button>
-            )}
+            <button
+              onClick={openAddModal}
+              className={`border border-transparent font-bold py-2 px-6 rounded-full flex items-center gap-2 transition-all shadow-[0_4px_14px_rgba(46,207,180,0.3)] transform 
+                ${canEdit 
+                  ? 'bg-[#2ecfb4] hover:bg-[#25b59d] text-white hover:shadow-[0_6px_20px_rgba(46,207,180,0.4)] hover:-translate-y-0.5' 
+                  : 'bg-slate-300 text-slate-500 cursor-not-allowed opacity-70'}`}
+            >
+              <span className="text-lg leading-none font-medium">+</span>
+              <span className="text-sm">Tambah Kartu</span>
+            </button>
           </div>
         </section>
 
@@ -1079,8 +1091,7 @@ export default function Board() {
                 </div>
 
                 {/* Subtask */}
-                {canEdit && (
-                  <div className="mt-6 border-t border-slate-200 pt-6">
+                <div className="mt-6 border-t border-slate-200 pt-6">
                     <h3 className="text-sm font-bold text-slate-700 mb-3">
                       Subtask <span className="text-slate-400 font-normal ml-2">({subtasks.length}/5)</span>
                     </h3>
@@ -1091,9 +1102,10 @@ export default function Board() {
                           <li key={sub.id_subtask} className="flex items-center gap-3">
                             <button
                               type="button"
-                              onClick={() => toggleSubtask(sub)}
+                              onClick={() => canEdit && toggleSubtask(sub)}
                               className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors shadow-sm
-                                ${sub.status === 'done' ? 'bg-[var(--color-primary)] border-teal-500' : 'border-slate-300 bg-white'}`}
+                                ${sub.status === 'done' ? 'bg-[var(--color-primary)] border-teal-500' : 'border-slate-300 bg-white'}
+                                ${!canEdit ? 'cursor-default' : ''}`}
                             >
                               {sub.status === 'done' && (
                                 <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
@@ -1104,48 +1116,51 @@ export default function Board() {
                             <span className={`flex-1 text-sm font-medium ${sub.status === 'done' ? 'line-through text-slate-400' : 'text-slate-800'}`}>
                               {sub.name}
                             </span>
-                            <button type="button" onClick={() => deleteSubtask(sub.id_subtask)} className="text-slate-400 hover:text-red-500 transition-colors">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            </button>
+                            {canEdit && (
+                              <button type="button" onClick={() => deleteSubtask(sub.id_subtask)} className="text-slate-400 hover:text-red-500 transition-colors">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                  <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              </button>
+                            )}
                           </li>
                         ))}
                       </ul>
                     )}
                     
-                    {subtasks.length < 5 ? (
-                      <div className="flex gap-2 mt-2">
-                        <input
-                          type="text"
-                          className="flex-1 px-4 py-2 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 placeholder-slate-400 transition-colors duration-200 text-sm font-medium"
-                          placeholder="Tambah subtask..."
-                          value={newSubtask}
-                          onChange={e => setNewSubtask(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleAddSubtask(e);
-                            }
-                          }}
-                          disabled={addingSubtask}
-                        />
-                        <button
-                          type="button"
-                          onClick={handleAddSubtask}
-                          disabled={addingSubtask || !newSubtask.trim()}
-                          className="px-4 py-2 rounded-xl bg-[var(--color-primary)] hover:bg-teal-500 border border-transparent text-white text-sm font-bold shadow-sm disabled:opacity-50 transition-colors"
-                        >
-                          +
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-amber-600 font-medium bg-amber-50 px-3 py-2 rounded-lg mt-2 border border-amber-200 text-center shadow-sm">
-                        Batas maksimal 5 subtask telah tercapai.
-                      </p>
+                    {canEdit && (
+                      subtasks.length < 5 ? (
+                        <div className="flex gap-2 mt-2">
+                          <input
+                            type="text"
+                            className="flex-1 px-4 py-2 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 placeholder-slate-400 transition-colors duration-200 text-sm font-medium"
+                            placeholder="Tambah subtask..."
+                            value={newSubtask}
+                            onChange={e => setNewSubtask(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddSubtask(e);
+                              }
+                            }}
+                            disabled={addingSubtask}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddSubtask}
+                            disabled={addingSubtask || !newSubtask.trim()}
+                            className="px-4 py-2 rounded-xl bg-[var(--color-primary)] hover:bg-teal-500 border border-transparent text-white text-sm font-bold shadow-sm disabled:opacity-50 transition-colors"
+                          >
+                            +
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-amber-600 font-medium bg-amber-50 px-3 py-2 rounded-lg mt-2 border border-amber-200 text-center shadow-sm">
+                          Batas maksimal 5 subtask telah tercapai.
+                        </p>
+                      )
                     )}
                   </div>
-                )}
               </form>
             </div>
 
