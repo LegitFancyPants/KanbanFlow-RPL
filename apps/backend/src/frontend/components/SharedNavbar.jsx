@@ -79,35 +79,33 @@ export default function SharedNavbar() {
         <img src="/logo.png" alt="KanbanFlow Logo" className="h-10 w-auto object-contain" />
       </div>
 
-      {/* Centered symmetrically - Only show tabs on protected pages */}
+      {/* Centered symmetrically - Always show tabs */}
       <div className="w-full md:w-1/3 flex justify-center mb-4 md:mb-0">
-        {showTabs && (
-          <div className="relative flex items-center h-10">
-            {/* Sliding Indicator Block */}
-            {activeIndex !== -1 && activeIndex !== null && (
-              <div 
-                className={`absolute bottom-0 h-[2px] bg-[var(--color-primary)] ${isAnimating ? 'transition-transform duration-300 ease-in-out' : ''}`}
-                style={{
-                  width: '100px',
-                  transform: `translateX(${activeIndex * 100}%)`
-                }}
-              />
-            )}
-            
-            <Link 
-              className={`w-[100px] relative z-10 text-center font-semibold text-[15px] transition-colors duration-300 ${activeIndex === 0 ? 'text-slate-900' : 'text-slate-500 hover:text-slate-800'}`} 
-              href="/dashboard"
-            >
-              Beranda
-            </Link>
-            <Link 
-              className={`w-[100px] relative z-10 text-center font-semibold text-[15px] transition-colors duration-300 ${activeIndex === 1 ? 'text-slate-900' : 'text-slate-500 hover:text-slate-800'}`} 
-              href="/projects"
-            >
-              Proyek Tim
-            </Link>
-          </div>
-        )}
+        <div className="relative flex items-center h-10">
+          {/* Sliding Indicator Block */}
+          {activeIndex !== -1 && activeIndex !== null && (
+            <div 
+              className={`absolute bottom-0 h-[2px] bg-[var(--color-primary)] ${isAnimating ? 'transition-transform duration-300 ease-in-out' : ''}`}
+              style={{
+                width: '100px',
+                transform: `translateX(${activeIndex * 100}%)`
+              }}
+            />
+          )}
+          
+          <Link 
+            className={`w-[100px] relative z-10 text-center font-semibold text-[15px] transition-colors duration-300 ${activeIndex === 0 ? 'text-slate-900' : 'text-slate-500 hover:text-slate-800'}`} 
+            href="/dashboard"
+          >
+            Beranda
+          </Link>
+          <Link 
+            className={`w-[100px] relative z-10 text-center font-semibold text-[15px] transition-colors duration-300 ${activeIndex === 1 ? 'text-slate-900' : 'text-slate-500 hover:text-slate-800'}`} 
+            href="/projects"
+          >
+            Proyek Tim
+          </Link>
+        </div>
       </div>
 
       {/* User Profile / Login */}
