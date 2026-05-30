@@ -7,16 +7,8 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if the user is already logged in by looking for the token in localStorage
-    const token = localStorage.getItem('token');
-    
-    if (token) {
-      // If they have a token, they are still logged in, so send them to their dashboard
-      router.push('/dashboard');
-    } else {
-      // If there is no token, they need to log in first
-      router.push('/login');
-    }
+    // Both logged-in and unlogged-in users go to the dashboard now
+    router.push('/dashboard');
   }, [router]);
 
   // Optionally return a subtle loading state while checking

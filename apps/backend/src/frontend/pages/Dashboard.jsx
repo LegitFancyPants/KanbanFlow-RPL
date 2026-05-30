@@ -3,7 +3,6 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import NotificationBell from "@/frontend/components/NotificationBell";
-import LoginModal from "@/frontend/components/LoginModal";
 import SharedNavbar from "@/frontend/components/SharedNavbar";
 import { getToken, getUser, clearAuth } from "@/frontend/utils/auth";
 
@@ -18,7 +17,6 @@ export default function Dashboard() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [stats, setStats] = useState({ activeProjects: 0, completedTasks: 0, overdueTasks: 0 });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
 
   useEffect(() => {
     async function fetchStats() {
@@ -51,7 +49,7 @@ export default function Dashboard() {
   function handleProtectedAction(e) {
     if (!isLoggedIn) {
       e.preventDefault();
-      setShowLoginModal(true);
+      router.push('/login');
     }
   }
 
@@ -178,8 +176,6 @@ export default function Dashboard() {
         </div>
       </footer>
       {/* END: Footer */}
-      
-      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </div>
   );
 }

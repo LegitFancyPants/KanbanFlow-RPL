@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import NotificationBell from "@/frontend/components/NotificationBell";
-import LoginModal from "@/frontend/components/LoginModal";
 import { getToken, getUser, clearAuth } from "@/frontend/utils/auth";
 import SharedNavbar from "@/frontend/components/SharedNavbar";
 
@@ -56,7 +55,6 @@ export default function Projects() {
   const [error, setError] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const router = useRouter();
 
   const user = getUser();
@@ -113,7 +111,7 @@ export default function Projects() {
   
   function handleFabClick() {
     if (!isLoggedIn) {
-      setShowLoginModal(true);
+      router.push('/login');
     } else {
       setError('');
       setIsModalOpen(true);
@@ -235,8 +233,6 @@ export default function Projects() {
           </div>
         </div>
       )}
-      
-      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </div>
   );
 }
