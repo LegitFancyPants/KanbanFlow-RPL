@@ -1,11 +1,13 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getToken } from '@/frontend/utils/auth';
 
 export default function NotificationBell() {
   const [invites, setInvites] = useState([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const bellRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   async function fetchInvites() {
     try {
@@ -29,6 +31,19 @@ export default function NotificationBell() {
     fetchInvites();
   }, []);
 
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (
+        bellRef.current && !bellRef.current.contains(e.target) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target)
+      ) {
+        setOpen(false);
+      }
+    }
+    if (open) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
   async function handleResponse(id, action) {
     try {
       const token = getToken();
@@ -41,10 +56,8 @@ export default function NotificationBell() {
         body: JSON.stringify({ action })
       });
       if (res.ok) {
-        // Remove from list and potentially trigger a refresh
         setInvites(invites.filter(i => i.id_invitation !== id));
         if (action === 'accept') {
-          // Optional: reload the page to show the new project in the list
           window.location.reload();
         }
       } else {
@@ -56,9 +69,26 @@ export default function NotificationBell() {
     }
   }
 
+  // Hitung apakah dropdown perlu digeser agar tidak keluar layar kiri
+  function getDropdownStyle() {
+    if (!bellRef.current) return {};
+    const bellRect = bellRef.current.getBoundingClientRect();
+    const dropdownWidth = 320; // w-80 = 320px
+    const rightEdge = bellRect.right;
+    const leftEdge = rightEdge - dropdownWidth;
+
+    if (leftEdge < 8) {
+      // Geser ke kanan agar tidak terpotong, dengan margin 8px dari tepi layar
+      const offset = 8 - leftEdge;
+      return { right: -(offset), left: 'auto' };
+    }
+    return {}; // default: right-0
+  }
+
   return (
     <div className="relative">
-      <button 
+      <button
+        ref={bellRef}
         onClick={() => setOpen(!open)}
         className="relative p-2 bg-white/80 rounded-full flex items-center justify-center border border-white/50 shadow-sm text-slate-700 hover:bg-white hover:text-[var(--color-primary)] transition-colors backdrop-blur-md"
       >
@@ -71,12 +101,16 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50">
+        <div
+          ref={dropdownRef}
+          style={getDropdownStyle()}
+          className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-16px)] bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50"
+        >
           <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
             <h3 className="font-semibold text-gray-800">Notifikasi</h3>
             <span className="text-xs bg-[var(--color-primary)] text-white px-2 py-0.5 rounded-full">{invites.length} Baru</span>
           </div>
-          
+
           <div className="max-h-[300px] overflow-y-auto">
             {loading ? (
               <div className="p-4 text-center text-gray-500 text-sm">Memuat...</div>
@@ -89,13 +123,13 @@ export default function NotificationBell() {
                     <span className="font-semibold">{inv.inviter_name}</span> mengundang Anda sebagai <span className="font-semibold text-[var(--color-primary)]">{inv.role === 'member' ? 'Anggota' : 'Penonton'}</span> di proyek <span className="font-semibold">{inv.project_name}</span>
                   </p>
                   <div className="flex gap-2 mt-3">
-                    <button 
+                    <button
                       onClick={() => handleResponse(inv.id_invitation, 'accept')}
                       className="flex-1 bg-[var(--color-primary)] text-white text-xs font-semibold py-1.5 rounded-full hover:bg-teal-500 transition-colors"
                     >
                       Terima
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleResponse(inv.id_invitation, 'reject')}
                       className="flex-1 bg-gray-100 text-gray-600 text-xs font-semibold py-1.5 rounded-full hover:bg-gray-200 transition-colors"
                     >
