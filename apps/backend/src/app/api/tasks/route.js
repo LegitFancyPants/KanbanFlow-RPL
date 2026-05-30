@@ -57,7 +57,7 @@ export async function POST(req) {
         name,
         description || null,
         Number(id_project),
-        Number(id_user),
+        id_user ? Number(id_user) : null,
         (status || "to do").trim().toLowerCase(),
         deadline || null,
       ]
@@ -66,11 +66,15 @@ export async function POST(req) {
     const task = result.rows[0];
 
     try {
-      const userRes = await pool.query(
-        `SELECT username FROM users WHERE id_user = $1`,
-        [Number(id_user)]
-      );
-      task.username = userRes.rows[0]?.username || "Unassigned";
+      if (id_user) {
+        const userRes = await pool.query(
+          `SELECT username FROM users WHERE id_user = $1`,
+          [Number(id_user)]
+        );
+        task.username = userRes.rows[0]?.username || "Unassigned";
+      } else {
+        task.username = "Unassigned";
+      }
     } catch {
       task.username = "Unassigned";
     }

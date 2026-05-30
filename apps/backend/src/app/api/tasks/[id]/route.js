@@ -38,9 +38,9 @@ export async function PUT(req, { params }) {
     const body = await req.json();
     const { name, description, status, id_user, deadline } = body;
 
-    // Ambil task dulu untuk cek project
+    // Ambil task dulu untuk cek project dan id_user lama
     const taskRes = await pool.query(
-      `SELECT id_project FROM tasks WHERE id_task = $1`,
+      `SELECT id_project, id_user FROM tasks WHERE id_task = $1`,
       [Number(id)]
     );
     if (taskRes.rows.length === 0) {
@@ -52,16 +52,21 @@ export async function PUT(req, { params }) {
       return forbidden("Hanya Owner atau Member yang dapat mengubah tugas");
     }
 
+    let finalIdUser = taskRes.rows[0].id_user;
+    if (body.hasOwnProperty("id_user")) {
+      finalIdUser = id_user ? Number(id_user) : null;
+    }
+
     const result = await pool.query(
       `UPDATE tasks
        SET name        = COALESCE($1, name),
            description = COALESCE($2, description),
            status      = COALESCE($3, status),
-           id_user     = COALESCE($4, id_user),
+           id_user     = $4,
            deadline    = COALESCE($5, deadline)
        WHERE id_task = $6
        RETURNING *`,
-      [name, description, status, id_user, deadline, Number(id)]
+      [name, description, status, finalIdUser, deadline, Number(id)]
     );
 
     return NextResponse.json(result.rows[0]);
