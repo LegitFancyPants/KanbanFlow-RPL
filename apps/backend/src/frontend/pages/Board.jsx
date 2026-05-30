@@ -193,17 +193,12 @@ export default function Board() {
     setAddError('');
     setAddLoading(true);
     try {
-      // Gunakan id_user dari form; jika kosong fallback ke user yang login
-      const rawId = addForm.id_user || String(user.id_user || '');
-      const targetUserId = Number(rawId);
+      // Gunakan id_user dari form, jika kosong berarti unassigned
+      const targetUserId = addForm.id_user ? Number(addForm.id_user) : null;
 
-      console.log('[Board] handleAddTask → id_user dipilih:', rawId, '→ Number:', targetUserId);
+      console.log('[Board] handleAddTask → id_user dipilih:', addForm.id_user, '→ Number:', targetUserId);
       console.log('[Board] user dari localStorage:', user);
       console.log('[Board] addForm:', addForm);
-
-      if (!targetUserId || isNaN(targetUserId)) {
-        throw new Error('Pilih anggota yang ditugaskan terlebih dahulu (id_user kosong)');
-      }
 
       const payload = {
         name:        addForm.name,
@@ -227,7 +222,7 @@ export default function Board() {
 
       // Tutup modal dan reset form
       setIsModalOpen(false);
-      setAddForm({ name: '', description: '', id_user: String(user.id_user || ''), deadline: '', status: 'to do' });
+      setAddForm({ name: '', description: '', id_user: '', deadline: '', status: 'to do' });
 
       // Optimistic update: langsung tambah ke state agar muncul seketika
       const normalizedStatus = (data.status || payload.status || 'to do').trim().toLowerCase();
@@ -235,9 +230,8 @@ export default function Board() {
         ...data,
         status: normalizedStatus,
         username: data.username
-          || members.find(m => String(m.id_user) === String(targetUserId))?.username
-          || user.username
-          || 'Unknown',
+          || (targetUserId ? members.find(m => String(m.id_user) === String(targetUserId))?.username : 'Unassigned')
+          || 'Unassigned',
       };
       console.log('[Board] newTask optimistic:', newTask);
       setTasks(prev => [newTask, ...prev]);
@@ -733,9 +727,8 @@ export default function Board() {
                       className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-transparent focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#2ecfb4]/50 focus:border-[#2ecfb4] text-slate-800 transition-all duration-200 text-sm font-bold appearance-none shadow-sm cursor-pointer"
                       value={addForm.id_user}
                       onChange={e => setAddForm(f => ({ ...f, id_user: e.target.value }))}
-                      required
                     >
-                      <option value="" disabled className="text-slate-400">Pilih anggota tim...</option>
+                      <option value="" className="text-slate-400">-- Unassigned --</option>
                       {members.length > 0
                         ? members.map(m => (
                             <option key={m.id_user} value={m.id_user}>{m.username}</option>

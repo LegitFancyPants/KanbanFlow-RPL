@@ -37,9 +37,9 @@ export async function POST(req) {
     const body = await req.json();
     const { name, description, id_project, id_user, status, deadline } = body;
 
-    if (!name || !id_project || !id_user) {
+    if (!name || !id_project) {
       return NextResponse.json(
-        { error: "name, id_project, id_user harus diisi" },
+        { error: "name, id_project harus diisi" },
         { status: 400 }
       );
     }
