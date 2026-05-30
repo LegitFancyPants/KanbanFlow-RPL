@@ -505,6 +505,13 @@ export default function Board() {
     // Prevent moving into overdue or moving out of overdue
     if (source.droppableId === 'overdue' || destination.droppableId === 'overdue') return;
 
+    // Check drag permissions
+    const taskToMoveCheck = tasks.find(t => String(t.id_task) === draggableId);
+    if (taskToMoveCheck && !canDragTask(taskToMoveCheck)) {
+      alert('You do not have permission to move this task');
+      return;
+    }
+
     // Optimistic UI update with proper order preservation
     setTasks(prev => {
       const taskIndex = prev.findIndex(t => String(t.id_task) === draggableId);
@@ -646,7 +653,7 @@ export default function Board() {
                             isOverdue={isOver} 
                             onClick={() => openManage(task)} 
                             index={index}
-                            isDragDisabled={!canEdit || isOver}
+                            isDragDisabled={isOver}
                           />
                         ))
                       )}
