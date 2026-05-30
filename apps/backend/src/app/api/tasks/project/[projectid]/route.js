@@ -1,7 +1,7 @@
 // tasks/project/[projectid]/route.js — ambil semua task di project
 import { NextResponse } from "next/server";
-import pool from "@/lib/db";
-import { canView, forbidden } from "@/lib/roleGuard";
+import pool from "@/backend/lib/db";
+import { canView, forbidden } from "@/backend/lib/roleGuard";
 
 export async function GET(req, { params }) {
   try {

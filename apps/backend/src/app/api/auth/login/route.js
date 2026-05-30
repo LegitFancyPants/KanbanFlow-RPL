@@ -1,6 +1,6 @@
 // src/app/api/auth/login/route.js
 import { NextResponse } from "next/server";
-import authService from "@/services/authService";
+import authService from "@/backend/services/authService";
 
 export async function POST(req) {
   try {

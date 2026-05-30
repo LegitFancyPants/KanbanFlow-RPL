@@ -61,5 +61,7 @@ export const config = {
     "/api/tasks/:path*",
     "/api/subtasks/:path*",
     "/api/members/:path*",
+    "/api/dashboard/:path*",
+    "/api/invitations/:path*",
   ],
 };

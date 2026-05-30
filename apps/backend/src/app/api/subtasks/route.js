@@ -1,7 +1,7 @@
 // subtasks/route.js — buat subtask (owner/member)
 import { NextResponse } from "next/server";
-import pool from "@/lib/db";
-import { canEdit, forbidden } from "@/lib/roleGuard";
+import pool from "@/backend/lib/db";
+import { canEdit, forbidden } from "@/backend/lib/roleGuard";
 
 export async function POST(req) {
   try {
@@ -32,7 +32,7 @@ export async function POST(req) {
 
     const result = await pool.query(
       `INSERT INTO subtasks (name, id_task, status)
-       VALUES ($1, $2, 'to do') RETURNING *`,
+       VALUES ($1, $2, 'doing') RETURNING *`,
       [name, Number(id_task)]
     );
 

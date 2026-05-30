@@ -1,6 +1,6 @@
 // src/app/api/auth/profile/route.js
 import { NextResponse } from "next/server";
-import authService from "@/services/authService";
+import authService from "@/backend/services/authService";
 import jwt from "jsonwebtoken";
 
 // Helper ambil user dari token

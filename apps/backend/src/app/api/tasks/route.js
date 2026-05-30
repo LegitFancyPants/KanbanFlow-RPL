@@ -1,7 +1,7 @@
 // tasks/route.js — GET semua task (admin) | POST buat task baru (owner/member)
 import { NextResponse } from "next/server";
-import pool from "@/lib/db";
-import { canEdit, canView, forbidden } from "@/lib/roleGuard";
+import pool from "@/backend/lib/db";
+import { canEdit, canView, forbidden } from "@/backend/lib/roleGuard";
 
 export async function GET(req) {
   try {

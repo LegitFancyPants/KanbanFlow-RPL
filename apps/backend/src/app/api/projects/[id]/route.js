@@ -1,7 +1,7 @@
 // projects/[id]/route.js
 import { NextResponse } from "next/server";
-import pool from "@/lib/db";
-import { isOwner, canView, forbidden } from "@/lib/roleGuard";
+import pool from "@/backend/lib/db";
+import { isOwner, canView, forbidden } from "@/backend/lib/roleGuard";
 
 export async function GET(req, { params }) {
   try {
