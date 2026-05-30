@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Hanken Grotesk", sans-serif;
+  /* Font is injected by next/font/google via layout.jsx */
   
   /* Login Variables */
   --color-brand-teal: #2ecfb4;

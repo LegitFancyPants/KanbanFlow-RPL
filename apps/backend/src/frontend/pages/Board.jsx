@@ -41,23 +41,23 @@ function TaskCard({ task, isOverdue, onClick, index, isDragDisabled }) {
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           onClick={onClick}
-          className={`border rounded-xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer backdrop-blur-md ${
-            snapshot.isDragging ? 'opacity-90 z-50 shadow-2xl scale-105 bg-white/80' : ''
+          className={`border rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow transition-colors cursor-pointer bg-white ${
+            snapshot.isDragging ? 'opacity-90 z-50 shadow-2xl' : ''
           } ${
             isOverdue
-              ? 'bg-red-50/80 text-red-600 border-red-200 hover:bg-red-100/90'
-              : 'border-white/60 bg-white/60 hover:bg-white/80 text-slate-800'
+              ? 'border-red-200 hover:border-red-300'
+              : 'border-slate-200 hover:border-[#2ecfb4]/50'
           }`}
           style={{ ...provided.draggableProps.style }}
         >
-          <h4 className={`font-bold mb-6 text-slate-900`}>{task.name}</h4>
-          <div className={`flex justify-between items-center text-xs text-slate-600`}>
+          <h4 className={`font-bold mb-6 ${isOverdue ? 'text-red-500' : 'text-slate-900'}`}>{task.name}</h4>
+          <div className={`flex justify-between items-center text-xs ${isOverdue ? 'text-red-400' : 'text-slate-500'}`}>
             <span>Deadline : {formatDeadline(task.deadline)}</span>
             <div className="flex items-center space-x-1">
-              <div className={`w-5 h-5 rounded-full border border-white/50 flex items-center justify-center text-[9px] font-bold shadow-sm bg-[var(--color-primary)] text-white`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold ${isOverdue ? 'bg-red-100 text-red-500' : 'bg-[#2ecfb4]/10 text-[#2ecfb4]'}`}>
                 {getInitials(task.username)}
               </div>
-              <span className="font-bold">{task.username}</span>
+              <span className="font-semibold">{task.username}</span>
             </div>
           </div>
         </div>
@@ -108,6 +108,7 @@ export default function Board() {
   // Team invite
   const [inviteEmail,   setInviteEmail]   = useState('');
   const [inviteRole,    setInviteRole]    = useState('member');
+  const [inviteRoleDropdownOpen, setInviteRoleDropdownOpen] = useState(false);
   const [inviteError,   setInviteError]   = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
 
@@ -364,6 +365,41 @@ export default function Board() {
     }
   }
 
+  // ── Manage member ───────────────────────────────────────────────────────────
+  async function handleUpdateMemberStatus(id_member, newStatus) {
+    try {
+      const res = await fetch(`/api/members/${id_member}`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Gagal mengubah role');
+      }
+      setMembers(members.map(m => m.id_member === id_member ? { ...m, status: newStatus } : m));
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  async function handleRemoveMember(id_member) {
+    if (!confirm('Apakah Anda yakin ingin menghapus anggota ini?')) return;
+    try {
+      const res = await fetch(`/api/members/${id_member}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Gagal menghapus anggota');
+      }
+      setMembers(members.filter(m => m.id_member !== id_member));
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
   // ── Add subtask ─────────────────────────────────────────────────────────────
   async function handleAddSubtask(e) {
     if (e) e.preventDefault();
@@ -504,8 +540,19 @@ export default function Board() {
   );
 
   return (
-    <div className="min-h-screen bg-static-gradient-board text-slate-800 font-sans flex flex-col relative overflow-hidden">
-      <div className="absolute inset-0 bg-white/20 z-0 pointer-events-none"></div>
+    <div className="bg-white text-slate-800 font-sans min-h-screen flex flex-col relative overflow-hidden">
+      {/* BEGIN: Background Elements (Orbs + Dot Grid) */}
+      <div className="absolute top-[-15%] right-[-5%] w-[600px] h-[600px] rounded-full bg-[#2ecfb4] opacity-[0.08] blur-[120px] pointer-events-none z-0"></div>
+      <div className="absolute top-[40%] left-[-10%] w-[500px] h-[500px] rounded-full bg-blue-400 opacity-[0.04] blur-[120px] pointer-events-none z-0"></div>
+      
+      <div 
+        className="absolute inset-0 z-0 pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 1.5px 1.5px, rgba(148, 163, 184, 0.25) 1.5px, transparent 0)',
+          backgroundSize: '32px 32px'
+        }}
+      ></div>
+      {/* END: Background Elements */}
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <SharedNavbar />
@@ -516,48 +563,36 @@ export default function Board() {
         {/* Project Header */}
         <section className="mb-8 flex flex-col lg:flex-row justify-between items-start lg:items-end border-b border-slate-200 pb-4">
           <div className="mb-4 lg:mb-0">
-            <h2 className="text-3xl font-black mb-1 text-slate-900 tracking-tight">{project?.name}</h2>
+            <h2 className="text-3xl font-bold mb-1 text-slate-900 tracking-tight">{project?.name}</h2>
             <p className="text-slate-700 text-sm font-medium">{project?.description || ''}</p>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
             {/* Anggota Tim */}
             <button
               onClick={() => setIsTeamModalOpen(true)}
-              className="font-bold text-slate-700 text-sm hover:text-slate-900 transition-colors flex items-center gap-2"
+              className="bg-white border border-slate-200 hover:border-[#2ecfb4]/50 hover:bg-slate-50 text-slate-700 font-bold py-2 px-5 rounded-full flex items-center gap-3 transition-all shadow-sm"
             >
-              Anggota Tim
+              <span className="text-sm">Anggota Tim</span>
               <div className="flex -space-x-2">
                 {members.slice(0, 4).map(m => (
                   <div key={m.id_member} title={m.username}
-                    className={`w-6 h-6 rounded-full border border-white/60 flex items-center justify-center text-[10px] font-bold shadow-sm
-                      ${m.status === 'owner' ? 'bg-[var(--color-primary)] text-white' : 'bg-white/80 text-slate-800'}`}>
+                    className={`w-6 h-6 rounded-full border border-white flex items-center justify-center text-[10px] font-bold shadow-sm
+                      ${m.status === 'owner' ? 'bg-[#2ecfb4]/20 text-[#2ecfb4]' : 'bg-slate-200 text-slate-600'}`}>
                     {getInitials(m.username)}
                   </div>
                 ))}
               </div>
             </button>
 
-            {/* Hapus Proyek */}
-            <button
-              onClick={() => setIsDeleteProjectOpen(true)}
-              className="bg-red-50 hover:bg-red-100 backdrop-blur-sm border border-red-200 text-red-600 font-bold py-2 px-4 rounded-full flex items-center space-x-1 transition-colors shadow-sm"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-              </svg>
-              <span>Hapus</span>
-            </button>
-
             {/* ── TAMBAH KARTU ── */}
             {canEdit && (
               <button
                 onClick={openAddModal}
-                className="bg-[var(--color-primary)] hover:bg-teal-500 backdrop-blur-sm border border-teal-400 text-white font-bold py-2 px-5 rounded-full flex items-center space-x-1 transition-colors shadow-md"
+                className="bg-[#2ecfb4] hover:bg-[#25b59d] border border-transparent text-white font-bold py-2 px-6 rounded-full flex items-center gap-2 transition-all shadow-[0_4px_14px_rgba(46,207,180,0.3)] hover:shadow-[0_6px_20px_rgba(46,207,180,0.4)] transform hover:-translate-y-0.5"
               >
-                <span className="text-xl leading-none mr-1">+</span>
-                <span>Tambah Kartu</span>
+                <span className="text-lg leading-none font-medium">+</span>
+                <span className="text-sm">Tambah Kartu</span>
               </button>
             )}
           </div>
@@ -570,9 +605,9 @@ export default function Board() {
             const isOver = status === 'overdue';
             return (
               <div key={status}
-                className={`${isOver ? 'bg-red-50/80 border-red-200' : 'bg-white/70 border-white/60'} rounded-[32px] p-6 flex-1 shadow-md border flex flex-col h-full min-w-0`}>
-                <h3 className={`text-center font-black text-lg tracking-wide border-b pb-2 mb-6 uppercase
-                  ${isOver ? 'border-red-200 text-red-500' : 'border-slate-300 text-slate-800'}`}>
+                className={`${isOver ? 'bg-red-50/50 border-red-100' : 'bg-slate-50 border-slate-100'} rounded-[24px] p-5 flex-1 shadow-sm border flex flex-col h-full min-w-0`}>
+                <h3 className={`font-bold text-sm tracking-widest pb-3 mb-4 uppercase
+                  ${isOver ? 'border-red-200 text-red-500' : 'border-slate-200 text-slate-600'}`}>
                   {STATUS_LABELS[status]}
                 </h3>
                 <Droppable droppableId={status}>
@@ -580,7 +615,7 @@ export default function Board() {
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`flex flex-col gap-4 flex-1 rounded-xl transition-colors ${snapshot.isDraggingOver ? 'ring-2 ring-white/60 bg-white/40' : ''}`}
+                      className={`flex flex-col gap-3 flex-1 rounded-xl transition-colors ${snapshot.isDraggingOver ? 'ring-2 ring-slate-200 bg-slate-100/50' : ''}`}
                     >
                       {grouped[status].length === 0 ? (
                         <p className="text-center text-sm text-slate-500 mt-8 font-bold">Tidak ada tugas</p>
@@ -608,130 +643,157 @@ export default function Board() {
 
       </main>
 
+      {/* FAB Hapus Proyek */}
+      <button
+        aria-label="Hapus Proyek"
+        onClick={() => setIsDeleteProjectOpen(true)}
+        className="fixed bottom-8 right-8 w-14 h-14 bg-white border border-red-100 hover:border-red-200 hover:bg-red-50 text-red-500 rounded-full flex items-center justify-center shadow-[0_4px_14px_rgb(0,0,0,0.05)] hover:shadow-[0_6px_20px_rgb(0,0,0,0.08)] transition-all z-40 group"
+        title="Hapus Proyek"
+      >
+        <svg className="h-6 w-6 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+        </svg>
+      </button>
+
 
       {/* ════════════════════════════════════════════════════
            MODAL: Tambah Kartu Tugas
          ════════════════════════════════════════════════════ */}
       {isModalOpen && (
         <div aria-modal="true" className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex justify-center items-center p-4" role="dialog">
-          <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-[2rem] shadow-2xl w-full max-w-2xl p-8 relative max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="absolute top-6 right-6 text-slate-400 hover:text-slate-700 transition-colors"
-            >
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-
-            <div className="mb-8 border-b border-slate-200 pb-6">
-              <h2 className="text-2xl font-black mb-2 text-slate-800">Tambah Kartu Tugas</h2>
-              <p className="text-sm text-slate-600 font-semibold">Tambah tugas baru dan kelola kartu tugas</p>
+          <div className="bg-white/95 backdrop-blur-xl border border-white/60 rounded-[2rem] shadow-2xl w-full max-w-[500px] flex flex-col relative max-h-[90vh] overflow-hidden">
+            
+            {/* Header */}
+            <div className="px-8 pt-8 pb-6 border-b border-slate-100 flex justify-between items-center bg-white/50">
+              <div>
+                <h2 className="text-2xl font-black text-slate-800 tracking-tight">Tambah Kartu</h2>
+                <p className="text-sm text-slate-500 font-medium mt-1">Buat tugas baru untuk proyek ini</p>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
             </div>
 
-            {addError && (
-              <div className="mb-4 px-4 py-3 rounded-xl bg-red-100/90 backdrop-blur-sm border border-red-200 text-red-600 font-medium text-sm text-center">{addError}</div>
-            )}
+            {/* Content (Scrollable) */}
+            <div className="p-8 overflow-y-auto">
+              {addError && (
+                <div className="mb-6 px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-red-600 font-bold text-sm flex items-center gap-3">
+                  <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  {addError}
+                </div>
+              )}
 
-            <form onSubmit={handleAddTask}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                {/* Kiri */}
-                <div className="flex flex-col gap-6">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Nama Tugas</label>
-                    <input
-                      className="w-full px-4 py-3 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 placeholder-slate-400 transition-colors duration-200 text-sm font-medium"
-                      placeholder="Nama tugas..."
-                      value={addForm.name}
-                      onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
+              <form onSubmit={handleAddTask} className="flex flex-col gap-6">
+                
+                {/* Nama Tugas */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 ml-1">Nama Tugas</label>
+                  <input
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-transparent focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#2ecfb4]/50 focus:border-[#2ecfb4] text-slate-800 placeholder-slate-300 transition-all duration-200 text-sm font-semibold shadow-sm"
+                    placeholder="Contoh: Desain halaman login..."
+                    value={addForm.name}
+                    onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                {/* Deskripsi */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 ml-1">Deskripsi</label>
+                  <textarea
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-transparent focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#2ecfb4]/50 focus:border-[#2ecfb4] text-slate-800 placeholder-slate-300 transition-all duration-200 text-sm font-medium resize-none min-h-[100px] shadow-sm"
+                    placeholder="Tambahkan detail tugas..."
+                    value={addForm.description}
+                    onChange={e => setAddForm(f => ({ ...f, description: e.target.value }))}
+                  />
+                </div>
+
+                {/* Ditugaskan Ke */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 ml-1">Ditugaskan Ke</label>
+                  <div className="relative">
+                    <select
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-transparent focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#2ecfb4]/50 focus:border-[#2ecfb4] text-slate-800 transition-all duration-200 text-sm font-bold appearance-none shadow-sm cursor-pointer"
+                      value={addForm.id_user}
+                      onChange={e => setAddForm(f => ({ ...f, id_user: e.target.value }))}
                       required
-                    />
-                  </div>
-                  <div className="flex-1 flex flex-col">
-                    <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Deskripsi</label>
-                    <textarea
-                      className="w-full px-4 py-3 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 placeholder-slate-400 transition-colors duration-200 text-sm font-medium resize-none flex-1 min-h-[120px]"
-                      placeholder="Deskripsi tugas..."
-                      value={addForm.description}
-                      onChange={e => setAddForm(f => ({ ...f, description: e.target.value }))}
-                    />
+                    >
+                      <option value="" disabled className="text-slate-400">Pilih anggota tim...</option>
+                      {members.length > 0
+                        ? members.map(m => (
+                            <option key={m.id_user} value={m.id_user}>{m.username}</option>
+                          ))
+                        : (
+                            <option value={user.id_user}>{user.username || 'Saya'}</option>
+                          )
+                      }
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+                      <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+                    </div>
                   </div>
                 </div>
 
-                {/* Kanan */}
-                <div className="flex flex-col gap-6">
+                {/* Batas Waktu & Status (Grid 2 column) */}
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Ditugaskan Ke</label>
-                    <div className="relative">
-                      <select
-                        className="w-full px-4 py-3 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 transition-colors duration-200 text-sm appearance-none font-medium"
-                        value={addForm.id_user}
-                        onChange={e => setAddForm(f => ({ ...f, id_user: e.target.value }))}
-                        required
-                      >
-                        <option value="" disabled className="text-gray-900">Pilih User</option>
-                        {members.length > 0
-                          ? members.map(m => (
-                              <option key={m.id_user} value={m.id_user} className="text-gray-900">{m.username}</option>
-                            ))
-                          : (
-                              <option value={user.id_user} className="text-gray-900">{user.username || 'Saya'}</option>
-                            )
-                        }
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                        <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Batas Waktu</label>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 ml-1">Batas Waktu</label>
                     <input
                       type="date"
-                      className="w-full px-4 py-3 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 transition-colors duration-200 text-sm font-medium"
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-transparent focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#2ecfb4]/50 focus:border-[#2ecfb4] text-slate-800 transition-all duration-200 text-sm font-bold shadow-sm cursor-pointer"
                       value={addForm.deadline}
                       onChange={e => setAddForm(f => ({ ...f, deadline: e.target.value }))}
                     />
                   </div>
-
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2 ml-1">Status Awal</label>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 ml-1">Status Awal</label>
                     <div className="relative">
                       <select
-                        className="w-full px-4 py-3 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 transition-colors duration-200 text-sm appearance-none font-medium"
+                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-transparent focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#2ecfb4]/50 focus:border-[#2ecfb4] text-slate-800 transition-all duration-200 text-sm font-bold appearance-none shadow-sm cursor-pointer"
                         value={addForm.status}
                         onChange={e => setAddForm(f => ({ ...f, status: e.target.value }))}
                       >
-                        <option value="to do" className="text-gray-900">TO - DO</option>
-                        <option value="doing" className="text-gray-900">DOING</option>
-                        <option value="done" className="text-gray-900">DONE</option>
+                        <option value="to do">TO-DO</option>
+                        <option value="doing">DOING</option>
+                        <option value="done">DONE</option>
                       </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
                         <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 pt-2 justify-center mt-8">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="w-full sm:w-40 py-3.5 px-6 rounded-xl bg-white/60 hover:bg-white/80 border border-slate-300 text-slate-700 font-bold transition-colors shadow-sm"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={addLoading}
-                  className="w-full sm:w-40 py-3.5 px-6 rounded-xl bg-[var(--color-primary)] hover:bg-teal-500 text-white font-bold transition-colors shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {addLoading ? 'Menyimpan...' : 'Simpan Kartu'}
-                </button>
-              </div>
-            </form>
+                {/* Footer Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-6 mt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-6 py-2.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 font-bold transition-colors text-sm"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={addLoading}
+                    className="px-6 py-2.5 rounded-xl bg-[#2ecfb4] hover:bg-[#25b59d] text-white font-bold transition-all duration-200 shadow-[0_4px_14px_rgba(46,207,180,0.3)] hover:shadow-[0_6px_20px_rgba(46,207,180,0.4)] disabled:opacity-60 disabled:cursor-not-allowed text-sm flex items-center gap-2"
+                  >
+                    {addLoading ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        Menyimpan...
+                      </>
+                    ) : (
+                      'Simpan Tugas'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
@@ -772,10 +834,37 @@ export default function Board() {
                           <p className="text-sm text-slate-600 font-medium">{m.email}</p>
                         </div>
                       </div>
-                      <span className={`px-3 py-1 text-xs font-bold rounded-full border shadow-sm
-                        ${m.status === 'owner' ? 'bg-[var(--color-primary)] border-teal-400 text-white' : 'bg-white/80 border-slate-300 text-slate-700'}`}>
-                        {m.status === 'owner' ? 'Pemilik' : m.status === 'member' ? 'Anggota' : 'Penonton'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {isOwner && m.status !== 'owner' ? (
+                          <>
+                            <div className="relative">
+                              <select
+                                value={m.status}
+                                onChange={(e) => handleUpdateMemberStatus(m.id_member, e.target.value)}
+                                className="px-4 py-1.5 pr-8 text-xs font-bold rounded-full border border-slate-300 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#2ecfb4] focus:border-[#2ecfb4] cursor-pointer appearance-none transition-colors hover:bg-slate-50"
+                              >
+                                <option value="member">Anggota</option>
+                                <option value="viewer">Penonton</option>
+                              </select>
+                              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveMember(m.id_member)}
+                              className="p-1.5 text-slate-400 hover:text-white hover:bg-red-500 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                              title="Hapus Anggota"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                          </>
+                        ) : (
+                          <span className={`px-4 py-1.5 text-xs font-bold rounded-full border shadow-[0_2px_8px_rgba(0,0,0,0.04)] text-center min-w-[80px]
+                            ${m.status === 'owner' ? 'bg-[#2ecfb4] border-[#25b59d] text-white' : 'bg-white/80 border-slate-200 text-slate-700'}`}>
+                            {m.status === 'owner' ? 'Pemilik' : m.status === 'member' ? 'Anggota' : 'Penonton'}
+                          </span>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -786,29 +875,79 @@ export default function Board() {
               <div className="p-6 bg-white/60 border-t border-slate-200">
                 <label className="block text-sm font-bold text-slate-700 mb-3 ml-1">Undang Anggota Baru :</label>
                 {inviteError && <p className="text-red-500 text-sm mb-2 font-bold">{inviteError}</p>}
-                <form onSubmit={handleInvite} className="flex gap-4">
-                  <input
-                    className="flex-1 px-4 py-2 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 placeholder-slate-400 transition-colors duration-200 text-sm font-medium"
-                    placeholder="Masukkan Email"
-                    type="email"
-                    value={inviteEmail}
-                    onChange={e => setInviteEmail(e.target.value)}
-                    required
-                  />
-                  <select
-                    value={inviteRole}
-                    onChange={e => setInviteRole(e.target.value)}
-                    className="px-4 py-2 rounded-xl bg-white/60 backdrop-blur-sm border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 transition-colors duration-200 text-sm appearance-none font-medium"
-                  >
-                    <option value="member" className="text-gray-900">Anggota</option>
-                    <option value="viewer" className="text-gray-900">Penonton</option>
-                  </select>
+                <form onSubmit={handleInvite} className="flex flex-row w-full items-stretch bg-white border border-slate-200 rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.02)] focus-within:ring-2 focus-within:ring-[#2ecfb4]/50 focus-within:border-[#2ecfb4] transition-all duration-300">
+                  
+                  {/* 65% Email Input */}
+                  <div className="w-[65%] flex items-center relative">
+                    <input
+                      className="w-full px-4 py-3 bg-transparent border-none focus:ring-0 focus:outline-none text-slate-800 placeholder-slate-400 text-sm font-medium rounded-l-xl"
+                      placeholder="Masukkan Email..."
+                      type="email"
+                      value={inviteEmail}
+                      onChange={e => setInviteEmail(e.target.value)}
+                      required
+                    />
+                    {/* Vertical Divider inside input container to keep percentages clean */}
+                    <div className="absolute right-0 h-6 w-px bg-slate-200"></div>
+                  </div>
+
+                  {/* 25% Role Select */}
+                  <div className="w-[25%] flex items-center pr-2 relative">
+                    <button
+                      type="button"
+                      onClick={() => setInviteRoleDropdownOpen(!inviteRoleDropdownOpen)}
+                      className="w-full flex items-center justify-between px-2 py-3 bg-transparent border-none focus:outline-none text-slate-700 text-sm font-bold cursor-pointer hover:text-[#2ecfb4] transition-colors"
+                    >
+                      <div className="flex items-center space-x-1.5 min-w-0">
+                        {inviteRole === 'member' ? (
+                          <svg className="w-4 h-4 flex-shrink-0 text-[#2ecfb4]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                        ) : (
+                          <svg className="w-4 h-4 flex-shrink-0 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                        )}
+                        <span className="truncate">{inviteRole === 'member' ? 'Anggota' : 'Penonton'}</span>
+                      </div>
+                      <svg className={`w-4 h-4 flex-shrink-0 text-slate-400 transition-transform duration-200 ${inviteRoleDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {inviteRoleDropdownOpen && (
+                      <div className="absolute bottom-[115%] left-0 w-[180px] bg-white border border-slate-100 rounded-xl shadow-[0_-4px_20px_rgba(0,0,0,0.08)] py-2 z-50 overflow-hidden transform opacity-100 scale-100 origin-bottom-left transition-all">
+                        <button
+                          type="button"
+                          onClick={() => { setInviteRole('member'); setInviteRoleDropdownOpen(false); }}
+                          className={`w-full flex items-center px-4 py-3 text-sm font-bold transition-colors ${inviteRole === 'member' ? 'bg-teal-50 text-[#2ecfb4]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                        >
+                          <svg className={`w-4 h-4 mr-3 flex-shrink-0 ${inviteRole === 'member' ? 'text-[#2ecfb4]' : 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                          Anggota
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setInviteRole('viewer'); setInviteRoleDropdownOpen(false); }}
+                          className={`w-full flex items-center px-4 py-3 text-sm font-bold transition-colors ${inviteRole === 'viewer' ? 'bg-teal-50 text-[#2ecfb4]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                        >
+                          <svg className={`w-4 h-4 mr-3 flex-shrink-0 ${inviteRole === 'viewer' ? 'text-[#2ecfb4]' : 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                          Penonton
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 10% Paper Plane Button */}
                   <button
                     type="submit"
                     disabled={inviteLoading}
-                    className="bg-[var(--color-primary)] hover:bg-teal-500 text-white font-bold text-sm px-6 py-2 rounded-xl transition-colors shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-[10%] flex items-center justify-center bg-[#2ecfb4] hover:bg-[#25b59d] text-white transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed group p-0 rounded-r-xl"
                   >
-                    {inviteLoading ? '...' : 'Undang'}
+                    {inviteLoading ? (
+                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5 flex-shrink-0 transform rotate-90 group-hover:translate-x-1 transition-transform duration-300 ease-out" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path>
+                      </svg>
+                    )}
                   </button>
                 </form>
               </div>
@@ -1057,28 +1196,38 @@ export default function Board() {
          ════════════════════════════════════════════════════ */}
       {isDeleteProjectOpen && (
         <div aria-modal="true" className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex justify-center items-center p-4" role="dialog">
-          <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-[2rem] shadow-2xl w-full max-w-md p-8 text-center relative">
-            <div className="w-16 h-16 bg-red-100 border border-red-200 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-              <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+          <div className="bg-white/95 backdrop-blur-xl border border-slate-100 rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden transform transition-all relative">
+            
+            {/* Top Accent Pattern */}
+            <div className="h-32 bg-red-50/60 w-full absolute top-0 left-0 rounded-t-[2rem]"></div>
+
+            <div className="p-8 pb-6 text-center relative mt-4 z-10">
+              {/* Icon Container with glowing effect */}
+              <div className="w-16 h-16 bg-red-100 border-4 border-white rounded-full flex items-center justify-center mx-auto mb-5 shadow-[0_0_15px_rgba(239,68,68,0.15)] relative">
+                <svg className="w-7 h-7 text-red-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              
+              <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-3">Hapus Proyek?</h2>
+              
+              <p className="text-slate-500 text-sm font-medium leading-relaxed">
+                Proyek "<strong className="text-slate-700">{project?.name}</strong>" beserta semua tugas dan subtask akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.
+              </p>
             </div>
-            <h2 className="text-2xl font-black mb-2 text-slate-800">Hapus Proyek?</h2>
-            <p className="text-slate-600 text-sm mb-8 font-semibold">
-              Tindakan ini akan menghapus proyek "<strong>{project?.name}</strong>" beserta semua tugas dan subtask di dalamnya secara permanen.
-            </p>
-            <div className="flex gap-4 justify-center">
+
+            <div className="px-6 py-5 flex flex-col sm:flex-row gap-3 justify-center items-center bg-slate-50/80 border-t border-slate-100 relative z-10">
               <button
                 onClick={() => setIsDeleteProjectOpen(false)}
-                className="w-36 py-3.5 px-6 rounded-xl bg-white/60 hover:bg-white/80 border border-slate-300 text-slate-700 font-bold transition-colors shadow-sm"
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 font-bold transition-colors text-sm"
               >
                 Batal
               </button>
               <button
                 onClick={handleDeleteProject}
-                className="w-36 py-3.5 px-6 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold transition-colors shadow-md border border-transparent"
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold transition-all shadow-[0_4px_14px_rgba(239,68,68,0.3)] hover:shadow-[0_6px_20px_rgba(239,68,68,0.4)] border border-transparent text-sm"
               >
-                Hapus
+                Hapus Proyek
               </button>
             </div>
           </div>

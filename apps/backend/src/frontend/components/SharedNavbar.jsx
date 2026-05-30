@@ -82,26 +82,26 @@ export default function SharedNavbar() {
       {/* Centered symmetrically - Only show tabs on protected pages */}
       <div className="w-full md:w-1/3 flex justify-center mb-4 md:mb-0">
         {showTabs && (
-          <div className="relative flex items-center justify-center p-1 bg-white/40 rounded-full backdrop-blur-md shadow-inner border border-white/50 w-64 h-10">
+          <div className="relative flex items-center h-10">
             {/* Sliding Indicator Block */}
             {activeIndex !== -1 && activeIndex !== null && (
               <div 
-                className={`absolute top-1 bottom-1 left-1 bg-white rounded-full shadow-sm ${isAnimating ? 'transition-transform duration-300 ease-in-out' : ''}`}
+                className={`absolute bottom-0 h-[2px] bg-[var(--color-primary)] ${isAnimating ? 'transition-transform duration-300 ease-in-out' : ''}`}
                 style={{
-                  width: 'calc(50% - 4px)',
+                  width: '100px',
                   transform: `translateX(${activeIndex * 100}%)`
                 }}
               />
             )}
             
             <Link 
-              className={`relative z-10 flex-1 text-center font-bold text-sm transition-colors duration-300 ${activeIndex === 0 ? 'text-[var(--color-primary)]' : 'text-slate-600 hover:text-slate-800'}`} 
+              className={`w-[100px] relative z-10 text-center font-semibold text-[15px] transition-colors duration-300 ${activeIndex === 0 ? 'text-slate-900' : 'text-slate-500 hover:text-slate-800'}`} 
               href="/dashboard"
             >
               Beranda
             </Link>
             <Link 
-              className={`relative z-10 flex-1 text-center font-bold text-sm transition-colors duration-300 ${activeIndex === 1 ? 'text-[var(--color-primary)]' : 'text-slate-600 hover:text-slate-800'}`} 
+              className={`w-[100px] relative z-10 text-center font-semibold text-[15px] transition-colors duration-300 ${activeIndex === 1 ? 'text-slate-900' : 'text-slate-500 hover:text-slate-800'}`} 
               href="/projects"
             >
               Proyek Tim

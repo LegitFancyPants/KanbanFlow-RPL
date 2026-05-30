@@ -23,10 +23,10 @@ const ROLE_LABEL = { owner: 'Pemilik', member: 'Anggota', viewer: 'Penonton' };
 
 function ProjectCard({ project, onOpen }) {
   return (
-    <article onClick={() => onOpen(project.id_project)} className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 shadow-md border border-white/60 flex flex-col relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-xl hover:bg-white/80 cursor-pointer text-slate-800">
+    <article onClick={() => onOpen(project.id_project)} className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-[0_2px_12px_rgb(0,0,0,0.03)] border border-slate-200 flex flex-col relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:border-[#2ecfb4]/30 hover:bg-white cursor-pointer group">
       <div className="flex justify-between items-start mb-4 gap-4">
-        <h3 className="text-xl font-bold leading-tight break-words flex-1 text-slate-900">{project.name}</h3>
-        <span className="bg-white/90 backdrop-blur-sm border border-slate-200 text-slate-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide whitespace-nowrap shadow-sm">
+        <h3 className="text-xl font-bold leading-tight break-words flex-1 text-slate-900 group-hover:text-[#2ecfb4] transition-colors">{project.name}</h3>
+        <span className="bg-slate-50 border border-slate-200 text-slate-600 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide whitespace-nowrap">
           {ROLE_LABEL[project.user_role] || 'Anggota'}
         </span>
       </div>
@@ -35,12 +35,12 @@ function ProjectCard({ project, onOpen }) {
         {project.description || 'Tidak ada deskripsi.'}
       </p>
 
-      <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-200">
+      <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-100">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-[var(--color-primary)] border border-white/50 text-white flex items-center justify-center text-xs font-bold shadow-sm">
+          <div className="w-8 h-8 rounded-full bg-[#2ecfb4]/10 text-[#2ecfb4] flex items-center justify-center text-xs font-bold">
             {getInitials(project.username)}
           </div>
-          <span className="text-xs text-slate-600 font-bold">{project.username}</span>
+          <span className="text-xs text-slate-600 font-semibold">{project.username}</span>
         </div>
       </div>
     </article>
@@ -121,8 +121,19 @@ export default function Projects() {
   }
 
   return (
-    <div className="bg-animated-gradient-dashboard text-slate-800 font-sans min-h-screen flex flex-col relative overflow-hidden">
-      <div className="absolute inset-0 bg-white/20 z-0 pointer-events-none"></div>
+    <div className="bg-white text-slate-800 font-sans min-h-screen flex flex-col relative overflow-hidden">
+      {/* BEGIN: Background Elements (Orbs + Dot Grid) */}
+      <div className="absolute top-[-15%] right-[-5%] w-[600px] h-[600px] rounded-full bg-[#2ecfb4] opacity-[0.08] blur-[120px] pointer-events-none z-0"></div>
+      <div className="absolute top-[40%] left-[-10%] w-[500px] h-[500px] rounded-full bg-blue-400 opacity-[0.04] blur-[120px] pointer-events-none z-0"></div>
+      
+      <div 
+        className="absolute inset-0 z-0 pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 1.5px 1.5px, rgba(148, 163, 184, 0.25) 1.5px, transparent 0)',
+          backgroundSize: '32px 32px'
+        }}
+      ></div>
+      {/* END: Background Elements */}
 
       {/* BEGIN: Navigation Bar */}
       <SharedNavbar />
@@ -131,15 +142,15 @@ export default function Projects() {
       {/* Main */}
       <main className="relative z-10 flex-1 max-w-7xl mx-auto w-full px-4 md:px-8 pt-10 pb-12">
         <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-black mb-4 text-slate-900 tracking-tight">Direktori Proyek Aktif</h2>
+          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900 tracking-tight">Direktori Proyek Aktif</h2>
           <p className="text-slate-700 text-lg font-medium max-w-2xl mx-auto">Kelola semua proyek dari berbagai sumber dalam satu dashboard terintegrasi.</p>
         </div>
 
         {loading ? (
           <div className="text-center py-20 text-slate-600 font-bold text-lg">Memuat proyek...</div>
         ) : projects.length === 0 ? (
-          <div className="text-center py-20 bg-white/60 backdrop-blur-xl rounded-3xl border border-white/60 shadow-md max-w-xl mx-auto">
-            <p className="text-xl font-black mb-2 text-slate-800">{isLoggedIn ? 'Belum ada proyek' : 'Anda belum login'}</p>
+          <div className="text-center py-20 bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-sm max-w-xl mx-auto">
+            <p className="text-xl font-bold mb-2 text-slate-800">{isLoggedIn ? 'Belum ada proyek' : 'Anda belum login'}</p>
             <p className="text-slate-600 font-medium">{isLoggedIn ? 'Klik tombol + di kanan bawah untuk membuat proyek baru' : 'Silakan login untuk melihat dan membuat proyek'}</p>
           </div>
         ) : (
@@ -163,10 +174,10 @@ export default function Projects() {
       </button>
 
       {/* BEGIN: Footer */}
-      <footer className="relative z-10 mt-auto bg-white/40 backdrop-blur-md border-t border-white/50">
-        <div className="max-w-7xl mx-auto px-6 py-6 md:py-8 flex flex-col md:flex-row justify-between items-center text-sm text-slate-600">
-          <p className="font-semibold">&copy; 2026 Kanbanflow. All rights reserved.</p>
-          <div className="flex flex-wrap justify-center space-x-6 mt-4 md:mt-0 font-semibold">
+      <footer className="w-full border-t border-slate-200 bg-white/80 backdrop-blur-sm py-6 relative z-10 mt-auto">
+        <div className="max-w-[1200px] w-full mx-auto px-6 md:px-12 flex flex-col md:flex-row justify-between items-center text-sm text-slate-500">
+          <p className="font-semibold mb-4 md:mb-0">&copy; 2026 Kanbanflow. All rights reserved.</p>
+          <div className="flex flex-wrap justify-center space-x-8 font-semibold">
             <Link href="/dashboard" className="hover:text-slate-900 transition-colors">Privacy Policy</Link>
             <Link href="/dashboard" className="hover:text-slate-900 transition-colors">Terms of Service</Link>
             <Link href="/dashboard" className="hover:text-slate-900 transition-colors">Contact Support</Link>

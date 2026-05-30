@@ -59,16 +59,27 @@ export default function SignUp() {
   };
 
   return (
-    <div className="bg-animated-gradient-dashboard text-slate-800 font-sans min-h-screen flex flex-col relative overflow-hidden">
-      <div className="absolute inset-0 bg-white/20 z-0 pointer-events-none"></div>
+    <div className="bg-white text-slate-800 font-sans min-h-screen flex flex-col relative overflow-hidden">
+      {/* BEGIN: Background Elements (Orbs + Dot Grid) */}
+      <div className="absolute top-[-15%] right-[-5%] w-[600px] h-[600px] rounded-full bg-[#2ecfb4] opacity-[0.08] blur-[120px] pointer-events-none z-0"></div>
+      <div className="absolute top-[40%] left-[-10%] w-[500px] h-[500px] rounded-full bg-blue-400 opacity-[0.04] blur-[120px] pointer-events-none z-0"></div>
+      
+      <div 
+        className="absolute inset-0 z-0 pointer-events-none"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 1.5px 1.5px, rgba(148, 163, 184, 0.25) 1.5px, transparent 0)',
+          backgroundSize: '32px 32px'
+        }}
+      ></div>
+      {/* END: Background Elements */}
       {/* Navbar exactly like Dashboard but for unauthenticated users */}
       <SharedNavbar />
 
       <main className="relative z-10 flex-grow flex items-center justify-center p-4">
-        {/* Bright Glassmorphism Card */}
-        <div className="w-full max-w-md bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white/60 shadow-xl p-10 flex flex-col items-center">
+        {/* Minimalist Solid Card */}
+        <div className="w-full max-w-md bg-white rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-10 flex flex-col items-center mt-8">
           <header className="flex flex-col items-center w-full mb-8">
-            <h1 className="text-3xl font-extrabold text-slate-800 tracking-wide text-center">
+            <h1 className="text-3xl font-bold text-slate-900 tracking-wide text-center">
               Create an Account
             </h1>
             <p className="text-slate-600 text-sm mt-2 font-semibold text-center">
@@ -89,7 +100,7 @@ export default function SignUp() {
               </label>
               <div className="relative">
                 <input
-                  className="w-full pl-4 pr-10 py-3 rounded-xl bg-white/60 backdrop-blur-sm border border-white/60 focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 placeholder-slate-400 transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                  className="w-full pl-4 pr-10 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-[#2ecfb4] focus:bg-white text-slate-800 placeholder-slate-400 transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-[#2ecfb4]"
                   id="username"
                   name="username"
                   type="text"
@@ -110,7 +121,7 @@ export default function SignUp() {
               </label>
               <div className="relative">
                 <input
-                  className="w-full pl-4 pr-10 py-3 rounded-xl bg-white/60 backdrop-blur-sm border border-white/60 focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 placeholder-slate-400 transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                  className="w-full pl-4 pr-10 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-[#2ecfb4] focus:bg-white text-slate-800 placeholder-slate-400 transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-[#2ecfb4]"
                   id="email"
                   name="email"
                   type="email"
@@ -131,7 +142,7 @@ export default function SignUp() {
               </label>
               <div className="relative">
                 <input
-                  className="w-full pl-4 pr-10 py-3 rounded-xl bg-white/60 backdrop-blur-sm border border-white/60 focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 placeholder-slate-400 transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                  className="w-full pl-4 pr-10 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-[#2ecfb4] focus:bg-white text-slate-800 placeholder-slate-400 transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-[#2ecfb4]"
                   id="password"
                   name="password"
                   type="password"
@@ -152,7 +163,7 @@ export default function SignUp() {
               </label>
               <div className="relative">
                 <input
-                  className="w-full pl-4 pr-10 py-3 rounded-xl bg-white/60 backdrop-blur-sm border border-white/60 focus:border-[var(--color-primary)] focus:bg-white/80 text-slate-800 placeholder-slate-400 transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                  className="w-full pl-4 pr-10 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:border-[#2ecfb4] focus:bg-white text-slate-800 placeholder-slate-400 transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-[#2ecfb4]"
                   id="confirmPassword"
                   name="confirmPassword"
                   type="password"
@@ -169,7 +180,7 @@ export default function SignUp() {
 
             <div className="pt-4">
               <button
-                className="w-full bg-[var(--color-primary)] hover:bg-teal-500 text-white font-bold py-3.5 px-6 rounded-xl transition-colors duration-200 shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full bg-[#2ecfb4] hover:bg-[#25b59d] text-white font-bold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-[0_4px_14px_rgba(46,207,180,0.3)] hover:shadow-[0_6px_20px_rgba(46,207,180,0.4)] transform hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
                 type="submit"
                 disabled={loading}
               >
@@ -180,7 +191,7 @@ export default function SignUp() {
 
           <div className="mt-6 text-sm text-center text-slate-700 font-medium">
             <span>Already have an account? </span>
-            <Link className="font-bold text-[var(--color-primary)] hover:text-teal-600 transition-colors duration-200" href="/login">
+            <Link className="font-bold text-[#2ecfb4] hover:text-teal-600 transition-colors duration-200" href="/login">
               Login
             </Link>
           </div>
