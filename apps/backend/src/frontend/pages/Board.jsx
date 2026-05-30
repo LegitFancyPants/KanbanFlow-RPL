@@ -272,7 +272,7 @@ export default function Board() {
     setManageForm({
       name:        task.name,
       description: task.description || '',
-      id_user:     String(task.id_user),
+      id_user:     task.id_user ? String(task.id_user) : '',
       deadline:    toInputDate(task.deadline),
       status:      task.status,
     });
@@ -301,7 +301,7 @@ export default function Board() {
         body: JSON.stringify({
           name:        manageForm.name,
           description: manageForm.description,
-          id_user:     Number(manageForm.id_user),
+          id_user:     manageForm.id_user ? Number(manageForm.id_user) : null,
           deadline:    manageForm.deadline || null,
           status:      manageForm.status,
         }),
@@ -1032,11 +1032,12 @@ export default function Board() {
                           onChange={e => setManageForm(f => ({ ...f, id_user: e.target.value }))}
                           disabled={!editMode}
                         >
+                          <option value="">-- Unassigned --</option>
                           {members.length > 0
                             ? members.map(m => (
                                 <option key={m.id_user} value={m.id_user} className="text-gray-900">{m.username}</option>
                               ))
-                            : <option value={selectedTask.id_user} className="text-gray-900">{selectedTask.username}</option>
+                            : selectedTask.id_user && <option value={selectedTask.id_user} className="text-gray-900">{selectedTask.username}</option>
                           }
                         </select>
                         {editMode && (

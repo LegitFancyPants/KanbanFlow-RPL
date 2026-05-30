@@ -21,7 +21,7 @@ export async function GET(req, { params }) {
       `SELECT
         t.id_task, t.name, t.description, t.status,
         t.created_at, t.deadline, t.id_project, t.id_user,
-        COALESCE(u.username, 'Unknown') AS username
+        COALESCE(u.username, 'Unassigned') AS username
       FROM tasks t
       LEFT JOIN users u ON t.id_user = u.id_user
       WHERE t.id_project = $1
