@@ -74,7 +74,13 @@ export async function POST(req) {
     // Insert invitation
     const insertResult = await pool.query(
       `INSERT INTO invitations (id_project, id_user, invited_by, role, status)
-       VALUES ($1, $2, $3, $4, 'pending') RETURNING *`,
+       VALUES ($1, $2, $3, $4, 'pending')
+       ON CONFLICT (id_project, id_user) DO UPDATE 
+       SET status = 'pending',
+           role = EXCLUDED.role,
+           invited_by = EXCLUDED.invited_by,
+           created_at = CURRENT_TIMESTAMP
+       RETURNING *`,
       [id_project, targetUserId, ownerId, role]
     );
 
