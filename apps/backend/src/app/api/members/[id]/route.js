@@ -5,7 +5,7 @@ import { isOwner, forbidden } from "@/backend/lib/roleGuard";
 export async function PUT(req, { params }) {
   try {
     const userId = req.headers.get("x-user-id");
-    const { id } = params; // ini id_member
+    const { id } = await params; // ini id_member
     const body = await req.json();
     const { status } = body;
 
@@ -44,7 +44,7 @@ export async function PUT(req, { params }) {
 export async function DELETE(req, { params }) {
   try {
     const userId = req.headers.get("x-user-id");
-    const { id } = params; // id_member
+    const { id } = await params; // id_member
 
     // Cek member yang akan dihapus
     const memberRes = await pool.query(`SELECT id_project, status FROM members WHERE id_member = $1`, [id]);
