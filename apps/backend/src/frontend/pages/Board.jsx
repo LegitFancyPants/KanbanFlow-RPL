@@ -395,7 +395,18 @@ export default function Board() {
         const data = await res.json();
         throw new Error(data.error || 'Gagal menghapus anggota');
       }
+      
+      const removedUserId = memberToRemove.id_user;
+      
       setMembers(members.filter(m => m.id_member !== memberToRemove.id_member));
+      
+      // Optimistically unassign tasks for the removed member
+      setTasks(prevTasks => prevTasks.map(t => 
+        String(t.id_user) === String(removedUserId) 
+          ? { ...t, id_user: null, username: 'Unassigned' } 
+          : t
+      ));
+
       setMemberToRemove(null);
     } catch (e) {
       alert(e.message);

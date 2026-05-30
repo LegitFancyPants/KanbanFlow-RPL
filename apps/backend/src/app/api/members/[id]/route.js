@@ -47,7 +47,7 @@ export async function DELETE(req, { params }) {
     const { id } = await params; // id_member
 
     // Cek member yang akan dihapus
-    const memberRes = await pool.query(`SELECT id_project, status FROM members WHERE id_member = $1`, [id]);
+    const memberRes = await pool.query(`SELECT id_user, id_project, status FROM members WHERE id_member = $1`, [id]);
     if (memberRes.rows.length === 0) {
       return NextResponse.json({ error: "Anggota tidak ditemukan" }, { status: 404 });
     }
@@ -63,7 +63,26 @@ export async function DELETE(req, { params }) {
       return NextResponse.json({ error: "Tidak dapat menghapus owner" }, { status: 403 });
     }
 
-    await pool.query(`DELETE FROM members WHERE id_member = $1`, [id]);
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      
+      // Hapus member dari tabel members
+      await client.query(`DELETE FROM members WHERE id_member = $1`, [id]);
+      
+      // Set id_user ke NULL pada tasks yang sebelumnya ditugaskan ke user tersebut di proyek ini
+      await client.query(
+        `UPDATE tasks SET id_user = NULL WHERE id_user = $1 AND id_project = $2`, 
+        [memberRes.rows[0].id_user, id_project]
+      );
+
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

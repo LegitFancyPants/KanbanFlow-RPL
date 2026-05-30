@@ -20,7 +20,7 @@ export async function GET(req) {
       SELECT
         t.id_task, t.name, t.description, t.status,
         t.created_at, t.deadline, t.id_project, t.id_user,
-        COALESCE(u.username, 'Unknown') AS username
+        COALESCE(u.username, 'Unassigned') AS username
       FROM tasks t
       LEFT JOIN users u ON t.id_user = u.id_user
       ORDER BY t.created_at DESC
@@ -70,9 +70,9 @@ export async function POST(req) {
         `SELECT username FROM users WHERE id_user = $1`,
         [Number(id_user)]
       );
-      task.username = userRes.rows[0]?.username || "Unknown";
+      task.username = userRes.rows[0]?.username || "Unassigned";
     } catch {
-      task.username = "Unknown";
+      task.username = "Unassigned";
     }
 
     return NextResponse.json(task, { status: 201 });

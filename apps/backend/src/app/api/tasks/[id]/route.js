@@ -9,7 +9,7 @@ export async function GET(req, { params }) {
     const { id } = await params;
 
     const result = await pool.query(
-      `SELECT t.*, COALESCE(u.username, 'Unknown') AS username
+      `SELECT t.*, COALESCE(u.username, 'Unassigned') AS username
        FROM tasks t LEFT JOIN users u ON t.id_user = u.id_user
        WHERE t.id_task = $1`,
       [Number(id)]
