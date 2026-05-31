@@ -53,6 +53,7 @@ export default function Projects() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const router = useRouter();
@@ -139,9 +140,24 @@ export default function Projects() {
 
       {/* Main */}
       <main className="relative z-10 flex-1 max-w-7xl mx-auto w-full px-4 md:px-8 pt-10 pb-12">
-        <div className="text-center mb-12">
+        <div className="text-center mb-10">
           <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900 tracking-tight">Direktori Proyek Aktif</h2>
-          <p className="text-slate-700 text-lg font-medium max-w-2xl mx-auto">Kelola semua proyek dari berbagai sumber dalam satu dashboard terintegrasi.</p>
+          <p className="text-slate-700 text-lg font-medium max-w-2xl mx-auto mb-8">Kelola semua proyek dari berbagai sumber dalam satu dashboard terintegrasi.</p>
+          
+          <div className="relative w-full">
+            <input
+              type="text"
+              placeholder="Cari proyek berdasarkan nama..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-6 py-4 rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm focus:outline-none focus:border-[#2ecfb4] focus:ring-1 focus:ring-[#2ecfb4] transition-all text-slate-800 font-medium placeholder-slate-400"
+            />
+            <div className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
         </div>
 
         {loading ? (
@@ -151,13 +167,24 @@ export default function Projects() {
             <p className="text-xl font-bold mb-2 text-slate-800">{isLoggedIn ? 'Belum ada proyek' : 'Anda belum login'}</p>
             <p className="text-slate-600 font-medium">{isLoggedIn ? 'Klik tombol + di kanan bawah untuk membuat proyek baru' : 'Silakan login untuk melihat dan membuat proyek'}</p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map(p => (
-              <ProjectCard key={p.id_project} project={p} onOpen={(id) => router.push(`/board/${id}`)} />
-            ))}
-          </div>
-        )}
+        ) : (() => {
+          const filteredProjects = projects.filter(p => 
+            p.name.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+          
+          return filteredProjects.length === 0 ? (
+            <div className="text-center py-20">
+              <p className="text-xl font-bold mb-2 text-slate-800">Proyek tidak ditemukan</p>
+              <p className="text-slate-600 font-medium">Coba gunakan kata kunci lain untuk mencari proyek Anda.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProjects.map(p => (
+                <ProjectCard key={p.id_project} project={p} onOpen={(id) => router.push(`/board/${id}`)} />
+              ))}
+            </div>
+          );
+        })()}
       </main>
 
       {/* FAB */}
