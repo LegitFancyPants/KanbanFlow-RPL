@@ -147,7 +147,7 @@ export default function Projects() {
           <div className="relative w-full">
             <input
               type="text"
-              placeholder="Cari proyek berdasarkan nama..."
+              placeholder="Cari proyek...."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full px-6 py-4 rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200 shadow-sm focus:outline-none focus:border-[#2ecfb4] focus:ring-1 focus:ring-[#2ecfb4] transition-all text-slate-800 font-medium placeholder-slate-400"
