@@ -89,6 +89,8 @@ export default function Board() {
   const [isTeamModalOpen,       setIsTeamModalOpen]       = useState(false);
   const [isManageTaskModalOpen, setIsManageTaskModalOpen] = useState(false);
   const [isDeleteProjectOpen,   setIsDeleteProjectOpen]   = useState(false);
+  const [isPermissionAlertOpen, setIsPermissionAlertOpen] = useState(false);
+  const [permissionAlertMessage, setPermissionAlertMessage] = useState('');
   const [leavingProject,        setLeavingProject]        = useState(false);
 
   // Selected task for manage modal
@@ -256,7 +258,8 @@ export default function Board() {
   // ── Open modal tambah kartu ─────────────────────────────────────────────────
   function openAddModal() {
     if (!canEdit) {
-      alert("Hanya Owner yang dapat menambahkan tugas baru");
+      setPermissionAlertMessage("Hanya Owner yang dapat menambahkan tugas baru.");
+      setIsPermissionAlertOpen(true);
       return;
     }
     setAddError('');
@@ -529,7 +532,8 @@ export default function Board() {
     // Check drag permissions
     const taskToMoveCheck = tasks.find(t => String(t.id_task) === draggableId);
     if (taskToMoveCheck && !canDragTask(taskToMoveCheck)) {
-      alert('You do not have permission to move this task');
+      setPermissionAlertMessage('Anda tidak memiliki izin untuk memindahkan tugas ini karena tugas ini ditugaskan kepada anggota lain.');
+      setIsPermissionAlertOpen(true);
       return;
     }
 
@@ -1338,6 +1342,40 @@ export default function Board() {
         </div>
       )}
 
+      {/* ════════════════════════════════════════════════════
+           MODAL: Permission Alert (Drag & Drop)
+         ════════════════════════════════════════════════════ */}
+      {isPermissionAlertOpen && (
+        <div aria-modal="true" className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[110] flex justify-center items-center p-4" role="dialog">
+          <div className="bg-white/95 backdrop-blur-xl border border-slate-100 rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden transform transition-all relative">
+            
+            <div className="h-32 bg-amber-50/60 w-full absolute top-0 left-0 rounded-t-[2rem]"></div>
+
+            <div className="p-8 pb-6 text-center relative mt-4 z-10">
+              <div className="w-16 h-16 bg-amber-100 border-4 border-white rounded-full flex items-center justify-center mx-auto mb-5 shadow-[0_0_15px_rgba(245,158,11,0.15)] relative">
+                <svg className="w-7 h-7 text-amber-500" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              
+              <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-3">Akses Ditolak</h2>
+              
+              <p className="text-slate-500 text-sm font-medium leading-relaxed">
+                {permissionAlertMessage}
+              </p>
+            </div>
+
+            <div className="px-6 py-5 flex justify-center items-center bg-slate-50/80 border-t border-slate-100 relative z-10">
+              <button
+                onClick={() => setIsPermissionAlertOpen(false)}
+                className="w-full px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold transition-all shadow-[0_4px_14px_rgba(245,158,11,0.3)] hover:shadow-[0_6px_20px_rgba(245,158,11,0.4)] border border-transparent text-sm"
+              >
+                Mengerti
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
