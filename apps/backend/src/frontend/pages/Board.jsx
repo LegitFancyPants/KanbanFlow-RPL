@@ -635,17 +635,6 @@ export default function Board() {
               </div>
             </button>
 
-            {/* Keluar dari Proyek (hanya untuk non-owner) */}
-            {!isOwner && myMembership && (
-              <button
-                onClick={handleLeaveProject}
-                disabled={leavingProject}
-                className="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 font-bold py-2 px-5 rounded-full flex items-center gap-2 transition-all shadow-sm disabled:opacity-50"
-              >
-                <span className="text-sm">{leavingProject ? 'Keluar...' : 'Keluar Proyek'}</span>
-              </button>
-            )}
-
             {/* ── TAMBAH KARTU ── */}
             <button
               onClick={openAddModal}
@@ -929,6 +918,19 @@ export default function Board() {
                     </li>
                   ))}
                 </ul>
+              )}
+              
+              {/* Keluar dari Proyek (hanya untuk non-owner) */}
+              {!isOwner && myMembership && (
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={handleLeaveProject}
+                    disabled={leavingProject}
+                    className="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 font-bold py-2.5 px-6 rounded-full flex items-center transition-all shadow-sm disabled:opacity-50 text-sm"
+                  >
+                    {leavingProject ? 'Keluar...' : 'Keluar Proyek'}
+                  </button>
+                </div>
               )}
             </div>
 
