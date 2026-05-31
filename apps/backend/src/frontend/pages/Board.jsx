@@ -89,6 +89,7 @@ export default function Board() {
   const [isTeamModalOpen,       setIsTeamModalOpen]       = useState(false);
   const [isManageTaskModalOpen, setIsManageTaskModalOpen] = useState(false);
   const [isDeleteProjectOpen,   setIsDeleteProjectOpen]   = useState(false);
+  const [leavingProject,        setLeavingProject]        = useState(false);
 
   // Selected task for manage modal
   const [selectedTask,  setSelectedTask]  = useState(null);
@@ -466,6 +467,26 @@ export default function Board() {
     }
   }
 
+  // ── Leave Project ───────────────────────────────────────────────────────────
+  async function handleLeaveProject() {
+    if (!myMembership) return;
+    if (!window.confirm('Apakah Anda yakin ingin keluar dari proyek ini?')) return;
+    
+    setLeavingProject(true);
+    try {
+      const res = await fetch(`/api/members/${myMembership.id_member}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      });
+      if (!res.ok) throw new Error('Gagal keluar dari proyek');
+      
+      router.push('/dashboard');
+    } catch (e) {
+      alert(e.message);
+      setLeavingProject(false);
+    }
+  }
+
   // ── Group tasks by status ───────────────────────────────────────────────────
   // Helper: cek apakah deadline sudah lewat (bandingkan tanggal saja, tanpa jam)
   function isDeadlinePassed(deadlineStr) {
@@ -609,6 +630,17 @@ export default function Board() {
                 ))}
               </div>
             </button>
+
+            {/* Keluar dari Proyek (hanya untuk non-owner) */}
+            {!isOwner && myMembership && (
+              <button
+                onClick={handleLeaveProject}
+                disabled={leavingProject}
+                className="bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 font-bold py-2 px-5 rounded-full flex items-center gap-2 transition-all shadow-sm disabled:opacity-50"
+              >
+                <span className="text-sm">{leavingProject ? 'Keluar...' : 'Keluar Proyek'}</span>
+              </button>
+            )}
 
             {/* ── TAMBAH KARTU ── */}
             <button

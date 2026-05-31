@@ -54,9 +54,12 @@ export async function DELETE(req, { params }) {
 
     const { id_project, status: currentStatus } = memberRes.rows[0];
 
-    // Hanya owner yang boleh menghapus anggota
-    if (!(await isOwner(userId, id_project))) {
-      return forbidden("Hanya Owner yang dapat menghapus anggota");
+    // Hanya owner yang boleh menghapus anggota, ATAU anggota boleh menghapus dirinya sendiri (keluar proyek)
+    const isProjectOwner = await isOwner(userId, id_project);
+    const isSelf = String(memberRes.rows[0].id_user) === String(userId);
+    
+    if (!isProjectOwner && !isSelf) {
+      return forbidden("Hanya Owner yang dapat menghapus anggota, atau Anda hanya dapat keluar sendiri");
     }
 
     if (currentStatus === "owner") {
