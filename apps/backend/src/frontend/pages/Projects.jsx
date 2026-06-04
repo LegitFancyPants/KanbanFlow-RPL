@@ -141,7 +141,7 @@ export default function Projects() {
       {/* Main */}
       <main className="relative z-10 flex-1 max-w-7xl mx-auto w-full px-4 md:px-8 pt-10 pb-12">
         <div className="text-center mb-10">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900 tracking-tight">Direktori Proyek Aktif</h2>
+          <h2 className="text-3xl md:text-5xl font-bold mb-4 text-slate-900 tracking-tight">Direktori Proyek Aktif</h2>
           <p className="text-slate-700 text-lg font-medium max-w-2xl mx-auto mb-8">Kelola semua proyek dari berbagai sumber dalam satu dashboard terintegrasi.</p>
           
           <div className="relative w-full">
@@ -191,9 +191,9 @@ export default function Projects() {
       <button
         aria-label="Buat proyek baru"
         onClick={handleFabClick}
-        className="fixed bottom-8 right-8 w-16 h-16 bg-[var(--color-primary)] hover:bg-teal-500 text-white rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-all z-40 border border-teal-400"
+        className="fixed bottom-8 right-8 w-14 h-14 md:w-16 md:h-16 bg-[var(--color-primary)] hover:bg-teal-500 text-white rounded-full flex items-center justify-center shadow-xl hover:scale-105 transition-all z-40 border border-teal-400"
       >
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+        <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
           <path d="M12 4.5v15m7.5-7.5h-15" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>

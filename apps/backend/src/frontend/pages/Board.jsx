@@ -650,13 +650,13 @@ export default function Board() {
         </section>
 
         {/* Kanban Board */}
-        <section className="gap-6 pb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 flex-1">
+        <section className="gap-6 pb-8 flex overflow-x-auto snap-x snap-mandatory lg:grid lg:grid-cols-4 lg:overflow-visible lg:snap-none flex-1 -mx-4 px-4 md:-mx-8 md:px-8">
           <DragDropContext onDragEnd={onDragEnd}>
           {STATUS_COLS.map(status => {
             const isOver = status === 'overdue';
             return (
               <div key={status}
-                className={`${isOver ? 'bg-red-50/50 border-red-100' : 'bg-slate-50 border-slate-100'} rounded-[24px] p-5 flex-1 shadow-sm border flex flex-col h-full min-w-0`}>
+                className={`${isOver ? 'bg-red-50/50 border-red-100' : 'bg-slate-50 border-slate-100'} rounded-[24px] p-5 shrink-0 w-[85vw] sm:w-[320px] lg:w-auto snap-center shadow-sm border flex flex-col h-full min-w-0`}>
                 <h3 className={`font-bold text-sm tracking-widest pb-3 mb-4 uppercase
                   ${isOver ? 'border-red-200 text-red-500' : 'border-slate-200 text-slate-600'}`}>
                   {STATUS_LABELS[status]}

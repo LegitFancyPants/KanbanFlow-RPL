@@ -77,7 +77,7 @@ export default function SignUp() {
 
       <main className="relative z-10 flex-grow flex items-center justify-center p-4">
         {/* Minimalist Solid Card */}
-        <div className="w-full max-w-md bg-white rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-10 flex flex-col items-center mt-8">
+        <div className="w-full max-w-md bg-white rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 sm:p-10 flex flex-col items-center mt-8">
           <header className="flex flex-col items-center w-full mb-8">
             <h1 className="text-3xl font-bold text-slate-900 tracking-wide text-center">
               Create an Account

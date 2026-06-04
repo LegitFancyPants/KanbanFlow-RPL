@@ -71,18 +71,18 @@ export default function Dashboard() {
 
       <SharedNavbar />
 
-      <main className="relative z-10 flex-grow w-full max-w-[1200px] mx-auto px-6 md:px-12 py-12 md:py-20 flex flex-col justify-center">
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-16 w-full">
+      <main className="relative z-10 flex-grow w-full max-w-[1200px] mx-auto px-6 md:px-12 py-8 md:py-20 flex flex-col justify-center">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-16 w-full">
           
           {/* BEGIN: Hero Section */}
           <section className="w-full lg:w-[55%] flex flex-col py-4">
             
-            <div className="mb-16 relative z-10">
-              <h1 className="text-4xl md:text-5xl lg:text-[54px] font-bold leading-[1.2] text-slate-900 tracking-tight">
+            <div className="mb-8 md:mb-16 relative z-10">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[54px] font-bold leading-[1.2] text-slate-900 tracking-tight">
                 Kelola Pekerjaan<br />
                 <span className="relative inline-block">
                   Menjadi Lebih Efisien
-                  <svg className="absolute -bottom-[63px] left-0 w-full text-teal-200 -z-10" viewBox="0 0 400 40" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                  <svg className="absolute -bottom-6 sm:-bottom-8 md:-bottom-12 lg:-bottom-[63px] left-0 w-full text-teal-200 -z-10" viewBox="0 0 400 40" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
                     <path d="M0,20 Q180,45 390,5 L375,0 M390,5 L385,15" stroke="currentColor" strokeWidth="4" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </span>
