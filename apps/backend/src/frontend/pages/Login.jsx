@@ -139,7 +139,7 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-sm text-slate-700 font-semibold">
+            <div className="flex items-center justify-start text-sm text-slate-700 font-semibold">
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input 
                   type="checkbox" 
@@ -149,9 +149,6 @@ export default function Login() {
                 />
                 <span>Remember me</span>
               </label>
-              <Link href="/forgot-password" className="hover:text-[#2ecfb4] hover:underline transition-colors">
-                Forgot Password?
-              </Link>
             </div>
 
             <div className="pt-2">
